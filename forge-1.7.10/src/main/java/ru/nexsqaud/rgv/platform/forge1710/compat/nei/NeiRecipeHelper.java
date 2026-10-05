@@ -292,8 +292,12 @@ public class NeiRecipeHelper {
             RgvRecipe rgvRecipe = createRgvRecipeFromNei(handler, recipeIndex);
             if (rgvRecipe != null) {
                 screenManager.getRecipeManager().addRecipe(rgvRecipe);
-                RgvInventory inv = RgvPlatform.get() != null ? RgvPlatform.get().getPlayerInventory() : null;
-                screenManager.getCraftGraph().addTabForRecipe(rgvRecipe, 1, screenManager.getRecipeManager(), inv);
+                if (screenManager.getCraftGraph().hasPendingTarget()) {
+                    screenManager.getCraftGraph().applyPendingTarget(rgvRecipe, screenManager.getRecipeManager());
+                } else {
+                    RgvInventory inv = RgvPlatform.get() != null ? RgvPlatform.get().getPlayerInventory() : null;
+                    screenManager.getCraftGraph().addTabForRecipe(rgvRecipe, 1, screenManager.getRecipeManager(), inv);
+                }
                 screenManager.getRecipeScreen().openGraphView();
             }
         } catch (Throwable t) {

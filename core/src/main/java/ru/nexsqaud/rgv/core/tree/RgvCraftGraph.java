@@ -75,4 +75,40 @@ public class RgvCraftGraph {
     public boolean isEmpty() {
         return tabs.isEmpty();
     }
+
+    private RgvCraftGraphTab pendingTargetTab = null;
+    private RgvStack pendingTargetStack = null;
+
+    public void setPendingTarget(RgvCraftGraphTab tab, RgvGraphNode node) {
+        this.pendingTargetTab = tab;
+        this.pendingTargetStack = node != null ? node.getStack() : (tab != null ? tab.getTargetStack() : null);
+    }
+
+    public boolean hasPendingTarget() {
+        return pendingTargetTab != null && pendingTargetStack != null;
+    }
+
+    public RgvStack getPendingTargetStack() {
+        return pendingTargetStack;
+    }
+
+    public RgvCraftGraphTab getPendingTargetTab() {
+        return pendingTargetTab;
+    }
+
+    public boolean applyPendingTarget(RgvRecipe recipe, RgvRecipeManager manager) {
+        if (!hasPendingTarget() || recipe == null) return false;
+        if (pendingTargetTab.getTargetStack() != null && pendingTargetTab.getTargetStack().equals(pendingTargetStack) && pendingTargetTab.isSelectingRecipe()) {
+            pendingTargetTab.assignRecipe(recipe, pendingTargetStack, manager);
+        } else {
+            pendingTargetTab.setRecipeForIngredient(pendingTargetStack, recipe, manager);
+        }
+        clearPendingTarget();
+        return true;
+    }
+
+    public void clearPendingTarget() {
+        this.pendingTargetTab = null;
+        this.pendingTargetStack = null;
+    }
 }

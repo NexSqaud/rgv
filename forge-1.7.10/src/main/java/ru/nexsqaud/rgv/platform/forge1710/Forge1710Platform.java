@@ -261,6 +261,14 @@ public class Forge1710Platform implements RgvPlatform {
     }
 
     @Override
+    public boolean hasSuitableSlotsFor(RgvRecipe recipe) {
+        if (FMLCommonHandler.instance().getSide().isClient()) {
+            return ru.nexsqaud.rgv.platform.forge1710.client.ClientTransferHelper.hasSuitableSlotsFor(recipe);
+        }
+        return false;
+    }
+
+    @Override
     public boolean isRecipeViewerPresent() {
         return isNeiPresent();
     }

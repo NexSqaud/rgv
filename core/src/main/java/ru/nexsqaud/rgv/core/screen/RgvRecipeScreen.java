@@ -4,7 +4,9 @@ import ru.nexsqaud.rgv.api.*;
 import ru.nexsqaud.rgv.api.widget.RgvWidget;
 import ru.nexsqaud.rgv.api.widget.RgvWidgetHolder;
 import ru.nexsqaud.rgv.api.widget.SlotWidget;
+import ru.nexsqaud.rgv.core.config.RgvConfig;
 import ru.nexsqaud.rgv.core.platform.RgvPlatform;
+import ru.nexsqaud.rgv.core.platform.TransferStatus;
 import ru.nexsqaud.rgv.core.recipe.RgvRecipeManager;
 import ru.nexsqaud.rgv.core.tree.RgvCraftGraph;
 import ru.nexsqaud.rgv.core.tree.RgvCraftGraphTab;
@@ -39,12 +41,14 @@ public class RgvRecipeScreen {
     private ViewMode viewMode = ViewMode.RECIPES;
     private ScreenListener listener;
     private RecipeLookupHandler lookupHandler;
+    private RgvConfig config;
 
     // Recipe View state
     private final List<RgvRecipeCategory> activeCategories = new ArrayList<>();
     private int currentCategoryIndex = 0;
     private List<RgvRecipe> currentRecipes = new ArrayList<>();
     private int currentRecipeIndex = 0;
+    private RgvStack targetStack = null;
 
     // Dialog layout
     private int x;
@@ -73,13 +77,17 @@ public class RgvRecipeScreen {
     private float panInitialY = 0;
     private int lastActiveTabIndex = -1;
 
-    // Recipe picker popup on graph nodes
-    private boolean isPickerOpen = false;
-    private RgvGraphNode activePickerNode = null;
-    private List<RgvRecipe> pickerCandidateRecipes = new ArrayList<>();
+    // Graph recipe selection mode (when choosing a craft recipe for an ingredient in the graph)
+    private boolean isSelectingForGraph = false;
+    private RgvCraftGraphTab graphSelectingTab = null;
+    private RgvGraphNode graphSelectingNode = null;
 
     public RgvRecipeScreen(RgvRecipeManager recipeManager) {
         this.recipeManager = recipeManager;
+    }
+
+    public void setConfig(RgvConfig config) {
+        this.config = config;
     }
 
     public void setListener(ScreenListener listener) {
@@ -99,21 +107,43 @@ public class RgvRecipeScreen {
     }
 
     public boolean isPickerOpen() {
-        return isPickerOpen;
+        return isSelectingForGraph;
     }
 
     public void closePicker() {
-        this.isPickerOpen = false;
-        this.activePickerNode = null;
+        this.isSelectingForGraph = false;
+        this.graphSelectingTab = null;
+        this.graphSelectingNode = null;
     }
 
     public void close() {
         this.open = false;
-        this.isPickerOpen = false;
-        this.activePickerNode = null;
+        this.isSelectingForGraph = false;
+        this.graphSelectingTab = null;
+        this.graphSelectingNode = null;
         if (listener != null) {
             listener.onClose();
         }
+    }
+
+    public void openRecipePickerForNode(RgvCraftGraphTab tab, RgvGraphNode node, List<RgvRecipe> recipes) {
+        if (recipes == null || recipes.isEmpty()) return;
+        this.graphSelectingTab = tab;
+        this.graphSelectingNode = node;
+        this.isSelectingForGraph = true;
+        this.targetStack = node != null ? node.getStack() : (tab != null ? tab.getTargetStack() : null);
+        this.activeCategories.clear();
+        Set<RgvRecipeCategory> cats = new LinkedHashSet<>();
+        for (RgvRecipe r : recipes) {
+            if (r != null && r.getCategory() != null) cats.add(r.getCategory());
+        }
+        this.activeCategories.addAll(cats);
+        this.currentCategoryIndex = 0;
+        this.currentRecipes = new ArrayList<>(recipes);
+        this.currentRecipeIndex = 0;
+        this.viewMode = ViewMode.RECIPES;
+        this.open = true;
+        rebuildActiveLayout();
     }
 
     public ViewMode getViewMode() {
@@ -122,8 +152,7 @@ public class RgvRecipeScreen {
 
     public void setViewMode(ViewMode viewMode) {
         this.viewMode = viewMode;
-        this.isPickerOpen = false;
-        this.activePickerNode = null;
+        closePicker();
 
         if (viewMode == ViewMode.RECIPES) {
             // Populate recipes if empty or sync with active graph tab
@@ -155,8 +184,7 @@ public class RgvRecipeScreen {
         if (recipes == null || recipes.isEmpty()) return;
         this.open = true;
         this.viewMode = ViewMode.RECIPES;
-        this.isPickerOpen = false;
-        this.activePickerNode = null;
+        closePicker();
 
         this.activeCategories.clear();
         for (RgvRecipe r : recipes) {
@@ -180,8 +208,7 @@ public class RgvRecipeScreen {
     public void openGraphView() {
         this.open = true;
         this.viewMode = ViewMode.GRAPH;
-        this.isPickerOpen = false;
-        this.activePickerNode = null;
+        closePicker();
 
         if (craftGraph.isEmpty()) {
             craftGraph.createNewEmptyTab();
@@ -350,7 +377,15 @@ public class RgvRecipeScreen {
         // Recipe Pagination & Title
         if (!currentRecipes.isEmpty()) {
             RgvRecipe currentRecipe = currentRecipes.get(currentRecipeIndex);
-            String title = currentRecipe.getCategory().getTitle();
+            String title;
+            if (isSelectingForGraph) {
+                String targetName = graphSelectingNode != null && graphSelectingNode.getStack() != null ?
+                        graphSelectingNode.getStack().getDisplayName() :
+                        (graphSelectingTab != null && graphSelectingTab.getTargetStack() != null ? graphSelectingTab.getTargetStack().getDisplayName() : "");
+                title = "\u00a76Choose Craft: \u00a70" + targetName;
+            } else {
+                title = currentRecipe.getCategory().getTitle();
+            }
             context.drawText(title, x + 8, y + 26, 0x222222, false);
 
             String pageText = (currentRecipeIndex + 1) + " / " + currentRecipes.size();
@@ -376,24 +411,51 @@ public class RgvRecipeScreen {
             }
         }
 
-        // Transfer '+' button & [+ Graph] button
+        // Bottom Action Buttons
         if (!currentRecipes.isEmpty()) {
-            RgvRecipe current = currentRecipes.get(currentRecipeIndex);
-            RgvInventory inv = RgvPlatform.get() != null ? RgvPlatform.get().getPlayerInventory() : null;
-
-            int btnX = x + width - 22;
             int btnY = y + height - 22;
-            boolean hover = mouseX >= btnX && mouseX < btnX + 14 && mouseY >= btnY && mouseY < btnY + 14;
-            boolean canCraft = current.canCraft(inv);
 
-            context.drawRect(btnX, btnY, 14, 14, hover ? 0xFF888888 : 0xFF555555);
-            context.drawText("+", btnX + 4, btnY + 3, canCraft ? 0x55FF55 : 0xFF5555, true);
+            if (isSelectingForGraph) {
+                // [✓ Use Craft] button
+                int useW = 86;
+                int useX = x + width - useW - 8;
+                boolean useHover = mouseX >= useX && mouseX < useX + useW && mouseY >= btnY && mouseY < btnY + 14;
+                context.drawRect(useX, btnY, useW, 14, useHover ? 0xFF2A882A : 0xFF1E661E);
+                context.drawText("\u2713 Use Craft", useX + 10, btnY + 3, 0xFFFFFF, true);
 
-            int graphBtnX = btnX - 58;
-            int graphBtnY = btnY;
-            boolean gHover = mouseX >= graphBtnX && mouseX < graphBtnX + 54 && mouseY >= graphBtnY && mouseY < graphBtnY + 14;
-            context.drawRect(graphBtnX, graphBtnY, 54, 14, gHover ? 0xFF55AA55 : 0xFF444444);
-            context.drawText("+ Graph", graphBtnX + 4, graphBtnY + 3, 0xFFFFFF, false);
+                // [< Back] button
+                int backW = 50;
+                int backX = useX - backW - 4;
+                boolean backHover = mouseX >= backX && mouseX < backX + backW && mouseY >= btnY && mouseY < btnY + 14;
+                context.drawRect(backX, btnY, backW, 14, backHover ? 0xFF666666 : 0xFF444444);
+                context.drawText("< Back", backX + 8, btnY + 3, 0xCCCCCC, false);
+
+                // [Reset Raw] button (if node has assigned recipe)
+                if (graphSelectingNode != null && graphSelectingNode.hasAssignedRecipe()) {
+                    int resetW = 76;
+                    int resetX = backX - resetW - 4;
+                    boolean resetHover = mouseX >= resetX && mouseX < resetX + resetW && mouseY >= btnY && mouseY < btnY + 14;
+                    context.drawRect(resetX, btnY, resetW, 14, resetHover ? 0xFFAA4444 : 0xFF773333);
+                    context.drawText("Reset Raw", resetX + 8, btnY + 3, 0xFFFFFF, true);
+                }
+            } else {
+                RgvRecipe current = currentRecipes.get(currentRecipeIndex);
+                RgvPlatform platform = RgvPlatform.get();
+                TransferStatus status = platform != null ? platform.getTransferStatus(current) : TransferStatus.NO_SUITABLE_CONTAINER;
+                boolean canTransfer = (status == TransferStatus.AVAILABLE);
+
+                int btnX = x + width - 22;
+                boolean hover = mouseX >= btnX && mouseX < btnX + 14 && mouseY >= btnY && mouseY < btnY + 14;
+
+                context.drawRect(btnX, btnY, 14, 14, canTransfer ? (hover ? 0xFF888888 : 0xFF555555) : 0xFF333333);
+                context.drawText("+", btnX + 4, btnY + 3, canTransfer ? 0x55FF55 : 0x777777, true);
+
+                int graphBtnX = btnX - 58;
+                int graphBtnY = btnY;
+                boolean gHover = mouseX >= graphBtnX && mouseX < graphBtnX + 54 && mouseY >= graphBtnY && mouseY < graphBtnY + 14;
+                context.drawRect(graphBtnX, graphBtnY, 54, 14, gHover ? 0xFF55AA55 : 0xFF444444);
+                context.drawText("+ Graph", graphBtnX + 4, graphBtnY + 3, 0xFFFFFF, false);
+            }
         }
     }
 
@@ -511,10 +573,6 @@ public class RgvRecipeScreen {
         context.drawText("+", plusX + 3, controlY + 3, 0xFFFFFF, false);
 
         renderTopRightLeafRequirements(context, activeTab, inv, mouseX, mouseY, delta);
-
-        if (isPickerOpen && activePickerNode != null) {
-            renderRecipePickerPopup(context, activeTab, mouseX, mouseY, delta);
-        }
     }
 
     private void renderGraphGrid(RgvDrawContext context, int vx, int vy, int vw, int vh) {
@@ -649,64 +707,6 @@ public class RgvRecipeScreen {
         }
     }
 
-    private void renderRecipePickerPopup(RgvDrawContext context, RgvCraftGraphTab tab, int mouseX, int mouseY, float delta) {
-        int popupW = 220;
-        int popupH = 140;
-        int popupX = x + (width - popupW) / 2;
-        int popupY = y + (height - popupH) / 2;
-
-        // Dark modal shade
-        context.drawRect(x + 6, y + 46, width - 12, height - 52, 0x90000000);
-
-        // Popup frame
-        context.drawRect(popupX, popupY, popupW, popupH, 0xFF2B2B2B);
-        context.drawRect(popupX + 1, popupY + 1, popupW - 2, popupH - 2, 0xFF4A4A4A);
-        context.drawRect(popupX + 2, popupY + 2, popupW - 4, popupH - 4, 0xFF2B2B2B);
-
-        // Header
-        context.drawRect(popupX + 3, popupY + 3, popupW - 6, 16, 0xFF3D3D3D);
-        String pTitle = "Select Recipe: " + activePickerNode.getStack().getDisplayName();
-        if (context.getTextWidth(pTitle) > popupW - 24) {
-            pTitle = pTitle.substring(0, Math.min(22, pTitle.length())) + "...";
-        }
-        context.drawText(pTitle, popupX + 6, popupY + 7, 0xFFFFFF, true);
-
-        // Close 'x'
-        int pcX = popupX + popupW - 14;
-        int pcY = popupY + 5;
-        boolean pcHover = mouseX >= pcX && mouseX < pcX + 10 && mouseY >= pcY && mouseY < pcY + 10;
-        context.drawText("x", pcX, pcY, pcHover ? 0xFFFF4444 : 0xAAAAAA, false);
-
-        // Candidate recipe list
-        int rY = popupY + 24;
-        RgvRecipe currentAssigned = tab.getAssignedRecipe(activePickerNode.getStack());
-
-        for (int i = 0; i < Math.min(pickerCandidateRecipes.size(), 3); i++) {
-            RgvRecipe r = pickerCandidateRecipes.get(i);
-            boolean isAssigned = (r.equals(currentAssigned));
-            boolean hover = mouseX >= popupX + 6 && mouseX < popupX + popupW - 6 && mouseY >= rY && mouseY < rY + 28;
-
-            context.drawRect(popupX + 6, rY, popupW - 12, 28, isAssigned ? 0xFF2A552A : (hover ? 0xFF444444 : 0xFF333333));
-            context.drawRect(popupX + 7, rY + 1, popupW - 14, 26, isAssigned ? 0xFF337733 : (hover ? 0xFF555555 : 0xFF3D3D3D));
-
-            r.getCategory().getIcon().render(context, popupX + 10, rY + 5, delta);
-            context.drawText(r.getCategory().getTitle() + " #" + (i + 1), popupX + 32, rY + 6, 0xFFFFFF, true);
-
-            String detail = (isAssigned ? "\u00a7a[Active] " : "") + "\u00a77Inputs: " + r.getInputs().size();
-            context.drawText(detail, popupX + 32, rY + 16, 0xCCCCCC, false);
-
-            rY += 32;
-        }
-
-        // Button to Clear / Revert to Raw Material
-        if (currentAssigned != null) {
-            int clearBtnY = popupY + popupH - 22;
-            boolean clearHover = mouseX >= popupX + 8 && mouseX < popupX + popupW - 8 && mouseY >= clearBtnY && mouseY < clearBtnY + 16;
-            context.drawRect(popupX + 8, clearBtnY, popupW - 16, 16, clearHover ? 0xFFAA4444 : 0xFF773333);
-            context.drawText("Reset Recipe (Keep as Raw)", popupX + 22, clearBtnY + 4, 0xFFFFFF, true);
-        }
-    }
-
     private void renderItemSelector(RgvDrawContext context, RgvCraftGraphTab tab, int mouseX, int mouseY, float delta) {
         context.drawText("Select an item to craft in this tab:", x + 10, y + 46, 0x222222, false);
 
@@ -829,23 +829,71 @@ public class RgvRecipeScreen {
                 }
             }
 
-            int btnX = x + width - 22;
             int btnY = y + height - 22;
-            if (mouseX >= btnX && mouseX < btnX + 14 && mouseY >= btnY && mouseY < btnY + 14) {
-                List<String> tip = new ArrayList<>();
-                tip.add("\u00a7aTransfer Ingredients (+)");
-                tip.add("\u00a77Click to fill open crafting container");
-                context.drawTooltip(tip, mouseX, mouseY);
-                return;
-            }
 
-            int graphBtnX = btnX - 58;
-            if (mouseX >= graphBtnX && mouseX < graphBtnX + 54 && mouseY >= btnY && mouseY < btnY + 14) {
-                List<String> tip = new ArrayList<>();
-                tip.add("\u00a7bAdd to Graph (+ Graph)");
-                tip.add("\u00a77Creates a new tab in the Craft Graph planner");
-                context.drawTooltip(tip, mouseX, mouseY);
-                return;
+            if (isSelectingForGraph) {
+                int useW = 86;
+                int useX = x + width - useW - 8;
+                if (mouseX >= useX && mouseX < useX + useW && mouseY >= btnY && mouseY < btnY + 14) {
+                    List<String> tip = new ArrayList<>();
+                    tip.add("\u00a7aUse This Recipe");
+                    tip.add("\u00a77Apply this recipe to the craft graph");
+                    context.drawTooltip(tip, mouseX, mouseY);
+                    return;
+                }
+
+                int backW = 50;
+                int backX = useX - backW - 4;
+                if (mouseX >= backX && mouseX < backX + backW && mouseY >= btnY && mouseY < btnY + 14) {
+                    List<String> tip = new ArrayList<>();
+                    tip.add("\u00a77Back to Graph");
+                    tip.add("\u00a78Cancel recipe selection");
+                    context.drawTooltip(tip, mouseX, mouseY);
+                    return;
+                }
+
+                if (graphSelectingNode != null && graphSelectingNode.hasAssignedRecipe()) {
+                    int resetW = 76;
+                    int resetX = backX - resetW - 4;
+                    if (mouseX >= resetX && mouseX < resetX + resetW && mouseY >= btnY && mouseY < btnY + 14) {
+                        List<String> tip = new ArrayList<>();
+                        tip.add("\u00a7cReset to Raw Material");
+                        tip.add("\u00a77Clear assigned recipe and treat as raw ingredient");
+                        context.drawTooltip(tip, mouseX, mouseY);
+                        return;
+                    }
+                }
+            } else {
+                int btnX = x + width - 22;
+                if (mouseX >= btnX && mouseX < btnX + 14 && mouseY >= btnY && mouseY < btnY + 14) {
+                    List<String> tip = new ArrayList<>();
+                    RgvRecipe current = !currentRecipes.isEmpty() ? currentRecipes.get(currentRecipeIndex) : null;
+                    RgvPlatform platform = RgvPlatform.get();
+                    TransferStatus status = platform != null ? platform.getTransferStatus(current) : TransferStatus.NO_SUITABLE_CONTAINER;
+
+                    if (status == TransferStatus.AVAILABLE) {
+                        tip.add("\u00a7aTransfer Ingredients (+)");
+                        tip.add("\u00a77Click to fill open crafting container");
+                        tip.add("\u00a78Right-click / shift-click to craft maximum");
+                    } else if (status == TransferStatus.MISSING_INGREDIENTS) {
+                        tip.add("\u00a7cTransfer Disabled");
+                        tip.add("\u00a7cMissing required ingredients in inventory");
+                    } else {
+                        tip.add("\u00a7cTransfer Disabled");
+                        tip.add("\u00a7cNo suitable container slots (workbench, inventory, or furnace)");
+                    }
+                    context.drawTooltip(tip, mouseX, mouseY);
+                    return;
+                }
+
+                int graphBtnX = btnX - 58;
+                if (mouseX >= graphBtnX && mouseX < graphBtnX + 54 && mouseY >= btnY && mouseY < btnY + 14) {
+                    List<String> tip = new ArrayList<>();
+                    tip.add("\u00a7bAdd to Graph (+ Graph)");
+                    tip.add("\u00a77Creates a new tab in the Craft Graph planner");
+                    context.drawTooltip(tip, mouseX, mouseY);
+                    return;
+                }
             }
         } else {
             // Graph Mode tooltips
@@ -942,33 +990,85 @@ public class RgvRecipeScreen {
             }
         }
 
-        // Transfer '+' button
-        int btnX = x + width - 22;
+        // Bottom Action Buttons
         int btnY = y + height - 22;
-        if (mouseX >= btnX && mouseX < btnX + 14 && mouseY >= btnY && mouseY < btnY + 14) {
-            if (!currentRecipes.isEmpty() && RgvPlatform.get() != null) {
-                RgvRecipe r = currentRecipes.get(currentRecipeIndex);
-                boolean transferred = RgvPlatform.get().transferRecipe(r, button == 1);
-                if (transferred) {
-                    close();
+        if (isSelectingForGraph) {
+            int useW = 86;
+            int useX = x + width - useW - 8;
+            if (mouseX >= useX && mouseX < useX + useW && mouseY >= btnY && mouseY < btnY + 14) {
+                if (!currentRecipes.isEmpty()) {
+                    RgvRecipe chosen = currentRecipes.get(currentRecipeIndex);
+                    if (graphSelectingNode != null && graphSelectingTab != null) {
+                        graphSelectingTab.setRecipeForIngredient(graphSelectingNode.getStack(), chosen, recipeManager);
+                    } else if (graphSelectingTab != null && graphSelectingTab.isSelectingRecipe()) {
+                        graphSelectingTab.assignRecipe(chosen, graphSelectingTab.getTargetStack(), recipeManager);
+                    }
+                    closePicker();
+                    setViewMode(ViewMode.GRAPH);
+                    if (graphSelectingTab != null) {
+                        centerGraph(graphSelectingTab, width - 12, height - 52);
+                    }
                 }
+                return true;
             }
-            return true;
-        }
 
-        // [+ Graph] button
-        int graphBtnX = btnX - 58;
-        if (mouseX >= graphBtnX && mouseX < graphBtnX + 54 && mouseY >= btnY && mouseY < btnY + 14) {
-            if (!currentRecipes.isEmpty()) {
-                RgvRecipe r = currentRecipes.get(currentRecipeIndex);
-                RgvInventory inv = RgvPlatform.get() != null ? RgvPlatform.get().getPlayerInventory() : null;
-                RgvCraftGraphTab newTab = craftGraph.addTabForRecipe(r, 1, recipeManager, inv);
+            int backW = 50;
+            int backX = useX - backW - 4;
+            if (mouseX >= backX && mouseX < backX + backW && mouseY >= btnY && mouseY < btnY + 14) {
+                closePicker();
                 setViewMode(ViewMode.GRAPH);
-                if (newTab != null) {
-                    centerGraph(newTab, width - 12, height - 52);
+                if (graphSelectingTab != null) {
+                    centerGraph(graphSelectingTab, width - 12, height - 52);
+                }
+                return true;
+            }
+
+            if (graphSelectingNode != null && graphSelectingNode.hasAssignedRecipe()) {
+                int resetW = 76;
+                int resetX = backX - resetW - 4;
+                if (mouseX >= resetX && mouseX < resetX + resetW && mouseY >= btnY && mouseY < btnY + 14) {
+                    if (graphSelectingTab != null) {
+                        graphSelectingTab.removeRecipeForIngredient(graphSelectingNode.getStack(), recipeManager);
+                    }
+                    closePicker();
+                    setViewMode(ViewMode.GRAPH);
+                    if (graphSelectingTab != null) {
+                        centerGraph(graphSelectingTab, width - 12, height - 52);
+                    }
+                    return true;
                 }
             }
-            return true;
+        } else {
+            // Transfer '+' button
+            int btnX = x + width - 22;
+            if (mouseX >= btnX && mouseX < btnX + 14 && mouseY >= btnY && mouseY < btnY + 14) {
+                if (!currentRecipes.isEmpty() && RgvPlatform.get() != null) {
+                    RgvRecipe r = currentRecipes.get(currentRecipeIndex);
+                    TransferStatus status = RgvPlatform.get().getTransferStatus(r);
+                    if (status == TransferStatus.AVAILABLE) {
+                        boolean transferred = RgvPlatform.get().transferRecipe(r, button == 1);
+                        if (transferred) {
+                            close();
+                        }
+                    }
+                }
+                return true;
+            }
+
+            // [+ Graph] button
+            int graphBtnX = btnX - 58;
+            if (mouseX >= graphBtnX && mouseX < graphBtnX + 54 && mouseY >= btnY && mouseY < btnY + 14) {
+                if (!currentRecipes.isEmpty()) {
+                    RgvRecipe r = currentRecipes.get(currentRecipeIndex);
+                    RgvInventory inv = RgvPlatform.get() != null ? RgvPlatform.get().getPlayerInventory() : null;
+                    RgvCraftGraphTab newTab = craftGraph.addTabForRecipe(r, 1, recipeManager, inv);
+                    setViewMode(ViewMode.GRAPH);
+                    if (newTab != null) {
+                        centerGraph(newTab, width - 12, height - 52);
+                    }
+                }
+                return true;
+            }
         }
 
         // Widgets
@@ -988,46 +1088,6 @@ public class RgvRecipeScreen {
     private boolean handleGraphModeClick(int mouseX, int mouseY, int button) {
         RgvCraftGraphTab activeTab = craftGraph.getActiveTab();
 
-        // Recipe picker popup interaction
-        if (isPickerOpen && activePickerNode != null && activeTab != null) {
-            int popupW = 220;
-            int popupH = 140;
-            int popupX = x + (width - popupW) / 2;
-            int popupY = y + (height - popupH) / 2;
-
-            int pcX = popupX + popupW - 14;
-            int pcY = popupY + 5;
-            if (mouseX >= pcX && mouseX < pcX + 10 && mouseY >= pcY && mouseY < pcY + 10) {
-                isPickerOpen = false;
-                return true;
-            }
-
-            int rY = popupY + 24;
-            for (int i = 0; i < Math.min(pickerCandidateRecipes.size(), 3); i++) {
-                if (mouseX >= popupX + 6 && mouseX < popupX + popupW - 6 && mouseY >= rY && mouseY < rY + 28) {
-                    activeTab.setRecipeForIngredient(activePickerNode.getStack(), pickerCandidateRecipes.get(i), recipeManager);
-                    isPickerOpen = false;
-                    centerGraph(activeTab, width - 12, height - 52);
-                    return true;
-                }
-                rY += 32;
-            }
-
-            if (activeTab.hasRecipeForIngredient(activePickerNode.getStack())) {
-                int clearBtnY = popupY + popupH - 22;
-                if (mouseX >= popupX + 8 && mouseX < popupX + popupW - 8 && mouseY >= clearBtnY && mouseY < clearBtnY + 16) {
-                    activeTab.removeRecipeForIngredient(activePickerNode.getStack(), recipeManager);
-                    isPickerOpen = false;
-                    centerGraph(activeTab, width - 12, height - 52);
-                    return true;
-                }
-            }
-
-            if (mouseX < popupX || mouseX > popupX + popupW || mouseY < popupY || mouseY > popupY + popupH) {
-                isPickerOpen = false;
-            }
-            return true;
-        }
 
         // Tab selection and close
         int tabX = x + 6;
@@ -1090,7 +1150,17 @@ public class RgvRecipeScreen {
 
                     if (mouseX >= slotX && mouseX < slotX + 18 && mouseY >= slotY && mouseY < slotY + 18) {
                         activeTab.selectItem(items.get(startIdx + i), recipeManager);
-                        centerGraph(activeTab, width - 12, height - 52);
+                        if (activeTab.isSelectingRecipe()) {
+                            if (platform != null && platform.isRecipeViewerPresent()) {
+                                craftGraph.setPendingTarget(activeTab, null);
+                                close();
+                                platform.openExternalRecipeViewer(activeTab.getTargetStack(), false);
+                            } else {
+                                openRecipePickerForNode(activeTab, null, activeTab.getCandidateRecipes());
+                            }
+                        } else {
+                            centerGraph(activeTab, width - 12, height - 52);
+                        }
                         return true;
                     }
                 }
@@ -1100,14 +1170,13 @@ public class RgvRecipeScreen {
 
         if (activeTab.isSelectingRecipe()) {
             List<RgvRecipe> recipes = activeTab.getCandidateRecipes();
-            int recipeY = y + 62;
-            for (int i = 0; i < Math.min(recipes.size(), 4); i++) {
-                if (mouseX >= x + 10 && mouseX < x + width - 20 && mouseY >= recipeY && mouseY < recipeY + 30) {
-                    activeTab.assignRecipe(recipes.get(i), activeTab.getTargetStack(), recipeManager);
-                    centerGraph(activeTab, width - 12, height - 52);
-                    return true;
-                }
-                recipeY += 32;
+            RgvPlatform platform = RgvPlatform.get();
+            if (platform != null && platform.isRecipeViewerPresent()) {
+                craftGraph.setPendingTarget(activeTab, null);
+                close();
+                platform.openExternalRecipeViewer(activeTab.getTargetStack(), false);
+            } else {
+                openRecipePickerForNode(activeTab, null, recipes);
             }
             return true;
         }
@@ -1128,9 +1197,14 @@ public class RgvRecipeScreen {
         if (hoveredGraphNode != null) {
             List<RgvRecipe> recipes = recipeManager.getRecipesFor(hoveredGraphNode.getStack());
             if (!recipes.isEmpty()) {
-                activePickerNode = hoveredGraphNode;
-                pickerCandidateRecipes = recipes;
-                isPickerOpen = true;
+                RgvPlatform platform = RgvPlatform.get();
+                if (platform != null && platform.isRecipeViewerPresent()) {
+                    craftGraph.setPendingTarget(activeTab, hoveredGraphNode);
+                    close();
+                    platform.openExternalRecipeViewer(hoveredGraphNode.getStack(), false);
+                } else {
+                    openRecipePickerForNode(activeTab, hoveredGraphNode, recipes);
+                }
                 return true;
             }
         }
@@ -1173,9 +1247,13 @@ public class RgvRecipeScreen {
 
     public boolean keyPressed(int keyCode, char typedChar) {
         if (!open) return false;
-        if (isPickerOpen) {
-            if (keyCode == 1) { // Escape closes popup
-                isPickerOpen = false;
+        if (isSelectingForGraph) {
+            if (keyCode == 1) { // Escape cancels recipe selection and returns to graph
+                closePicker();
+                setViewMode(ViewMode.GRAPH);
+                if (graphSelectingTab != null) {
+                    centerGraph(graphSelectingTab, width - 12, height - 52);
+                }
                 return true;
             }
         }
@@ -1204,6 +1282,52 @@ public class RgvRecipeScreen {
                 int newIdx = (craftGraph.getActiveTabIndex() + 1) % craftGraph.getTabs().size();
                 craftGraph.setActiveTabIndex(newIdx);
                 return true;
+            }
+        }
+
+        // Hotkeys R (19), U (22), A (30) on hovered items inside RgvRecipeScreen
+        RgvStack hovered = null;
+        if (viewMode == ViewMode.RECIPES) {
+            if (hoveredWidget instanceof SlotWidget) {
+                SlotWidget sw = (SlotWidget) hoveredWidget;
+                if (sw.getIngredient() != null && !sw.getIngredient().getRgvStacks().isEmpty()) {
+                    hovered = sw.getIngredient().getRgvStacks().get(0);
+                }
+            }
+        } else if (viewMode == ViewMode.GRAPH) {
+            if (hoveredGraphNode != null && hoveredGraphNode.getStack() != null) {
+                hovered = hoveredGraphNode.getStack();
+            } else if (hoveredLeafStack != null && !hoveredLeafStack.isEmpty()) {
+                hovered = hoveredLeafStack;
+            }
+        }
+
+        if (hovered != null && !hovered.isEmpty()) {
+            if (keyCode == 19) { // 'R'
+                if (lookupHandler != null) {
+                    lookupHandler.openRecipesFor(hovered);
+                } else {
+                    List<RgvRecipe> recipes = recipeManager.getRecipesFor(hovered);
+                    if (!recipes.isEmpty()) {
+                        openWithRecipes(recipes, "Recipes for: " + hovered.getDisplayName());
+                    }
+                }
+                return true;
+            } else if (keyCode == 22) { // 'U'
+                if (lookupHandler != null) {
+                    lookupHandler.openUsesFor(hovered);
+                } else {
+                    List<RgvRecipe> usages = recipeManager.getUsesFor(hovered);
+                    if (!usages.isEmpty()) {
+                        openWithRecipes(usages, "Usages of: " + hovered.getDisplayName());
+                    }
+                }
+                return true;
+            } else if (keyCode == 30) { // 'A'
+                if (config != null) {
+                    config.toggleBookmark(hovered);
+                    return true;
+                }
             }
         }
 
