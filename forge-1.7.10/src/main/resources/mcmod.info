@@ -1,0 +1,21 @@
+{
+	"modListVersion": 2,
+	"modList": [{
+		"modid": "${modId}",
+		"name": "${modName}",
+		"description": "Recipe Graph Viewer (RGV) - Modern, fast recipe viewer, tree calculator and item index with an abstract cross-version API.",
+		"version": "${modVersion}",
+		"mcversion": "${minecraftVersion}",
+		"url": "https://github.com/nexsqaud/rgv",
+		"updateUrl": "",
+		"authorList": ["NexSqaud"],
+		"credits": "NexSqaud, inspired by EMI",
+		"logoFile": "",
+		"screenshots": [],
+		"parent": "",
+		"requiredMods": [],
+		"dependencies": [],
+		"dependants": [],
+		"useDependencyInformation": false
+	}]
+}
