@@ -70,6 +70,7 @@ public class RgvRecipeScreen {
     private RgvStack hoveredLeftoverStack = null;
     private long hoveredLeftoverAmount = 0;
     private boolean open = false;
+    private long openTime = 0;
 
     // Item selector pagination for manual new tab
     private int itemPickerPage = 0;
@@ -150,6 +151,7 @@ public class RgvRecipeScreen {
         this.currentRecipeIndex = 0;
         this.viewMode = ViewMode.RECIPES;
         this.open = true;
+        this.openTime = System.currentTimeMillis();
         rebuildActiveLayout();
     }
 
@@ -190,6 +192,7 @@ public class RgvRecipeScreen {
     public void openWithRecipes(List<RgvRecipe> recipes, String title) {
         if (recipes == null || recipes.isEmpty()) return;
         this.open = true;
+        this.openTime = System.currentTimeMillis();
         this.viewMode = ViewMode.RECIPES;
         closePicker();
 
@@ -214,6 +217,7 @@ public class RgvRecipeScreen {
 
     public void openGraphView() {
         this.open = true;
+        this.openTime = System.currentTimeMillis();
         this.viewMode = ViewMode.GRAPH;
         closePicker();
 
@@ -295,8 +299,10 @@ public class RgvRecipeScreen {
         int recipeW = recipe.getDisplayWidth();
         int recipeH = recipe.getDisplayHeight();
 
-        this.width = Math.max(200, recipeW + 32);
-        this.height = Math.max(140, recipeH + 54);
+        int minW = isSelectingForGraph ? 240 : 200;
+        int minH = isSelectingForGraph ? 150 : 140;
+        this.width = Math.max(minW, recipeW + 32);
+        this.height = Math.max(minH, recipeH + 54);
 
         this.x = (screenW - width) / 2;
         this.y = (screenH - height) / 2;
@@ -460,29 +466,30 @@ public class RgvRecipeScreen {
             int btnY = y + height - 22;
 
             if (isSelectingForGraph) {
-                // [✓ Use Craft] button
+                // [Reset Raw] button on the left (if node has assigned recipe)
+                if (graphSelectingNode != null && graphSelectingNode.hasAssignedRecipe()) {
+                    int resetX = x + 8;
+                    int resetW = 74;
+                    boolean resetHover = mouseX >= resetX && mouseX < resetX + resetW && mouseY >= btnY && mouseY < btnY + 14;
+                    context.drawRect(resetX, btnY, resetW, 14, resetHover ? 0xFFAA4444 : 0xFF773333);
+                    context.drawText("Reset Raw", resetX + 8, btnY + 3, 0xFFFFFF, true);
+                }
+
+                // [✓ Use Craft] button on the right
                 int useW = 86;
                 int useX = x + width - useW - 8;
                 boolean useHover = mouseX >= useX && mouseX < useX + useW && mouseY >= btnY && mouseY < btnY + 14;
                 context.drawRect(useX, btnY, useW, 14, useHover ? 0xFF2A882A : 0xFF1E661E);
                 context.drawText("\u2713 Use Craft", useX + 10, btnY + 3, 0xFFFFFF, true);
 
-                // [< Back] button
+                // [< Back] button to the left of Use Craft
                 int backW = 50;
-                int backX = useX - backW - 4;
+                int backX = useX - backW - 6;
                 boolean backHover = mouseX >= backX && mouseX < backX + backW && mouseY >= btnY && mouseY < btnY + 14;
                 context.drawRect(backX, btnY, backW, 14, backHover ? 0xFF666666 : 0xFF444444);
                 context.drawText("< Back", backX + 8, btnY + 3, 0xCCCCCC, false);
-
-                // [Reset Raw] button (if node has assigned recipe)
-                if (graphSelectingNode != null && graphSelectingNode.hasAssignedRecipe()) {
-                    int resetW = 76;
-                    int resetX = backX - resetW - 4;
-                    boolean resetHover = mouseX >= resetX && mouseX < resetX + resetW && mouseY >= btnY && mouseY < btnY + 14;
-                    context.drawRect(resetX, btnY, resetW, 14, resetHover ? 0xFFAA4444 : 0xFF773333);
-                    context.drawText("Reset Raw", resetX + 8, btnY + 3, 0xFFFFFF, true);
-                }
-            } else {
+            }
+ else {
                 RgvRecipe current = currentRecipes.get(currentRecipeIndex);
                 RgvPlatform platform = RgvPlatform.get();
                 TransferStatus status = platform != null ? platform.getTransferStatus(current) : TransferStatus.NO_SUITABLE_CONTAINER;
@@ -948,7 +955,7 @@ public class RgvRecipeScreen {
                 }
 
                 int backW = 50;
-                int backX = useX - backW - 4;
+                int backX = useX - backW - 6;
                 if (mouseX >= backX && mouseX < backX + backW && mouseY >= btnY && mouseY < btnY + 14) {
                     List<String> tip = new ArrayList<>();
                     tip.add("\u00a77Back to Graph");
@@ -958,8 +965,8 @@ public class RgvRecipeScreen {
                 }
 
                 if (graphSelectingNode != null && graphSelectingNode.hasAssignedRecipe()) {
-                    int resetW = 76;
-                    int resetX = backX - resetW - 4;
+                    int resetW = 74;
+                    int resetX = x + 8;
                     if (mouseX >= resetX && mouseX < resetX + resetW && mouseY >= btnY && mouseY < btnY + 14) {
                         List<String> tip = new ArrayList<>();
                         tip.add("\u00a7cReset to Raw Material");
@@ -1112,6 +1119,22 @@ public class RgvRecipeScreen {
         // Bottom Action Buttons
         int btnY = y + height - 22;
         if (isSelectingForGraph) {
+            if (graphSelectingNode != null && graphSelectingNode.hasAssignedRecipe()) {
+                int resetX = x + 8;
+                int resetW = 74;
+                if (mouseX >= resetX && mouseX < resetX + resetW && mouseY >= btnY && mouseY < btnY + 14) {
+                    if (graphSelectingTab != null) {
+                        graphSelectingTab.removeRecipeForIngredient(graphSelectingNode.getStack(), recipeManager);
+                    }
+                    closePicker();
+                    setViewMode(ViewMode.GRAPH);
+                    if (graphSelectingTab != null) {
+                        centerGraph(graphSelectingTab, width - 12, height - 52);
+                    }
+                    return true;
+                }
+            }
+
             int useW = 86;
             int useX = x + width - useW - 8;
             if (mouseX >= useX && mouseX < useX + useW && mouseY >= btnY && mouseY < btnY + 14) {
@@ -1132,7 +1155,7 @@ public class RgvRecipeScreen {
             }
 
             int backW = 50;
-            int backX = useX - backW - 4;
+            int backX = useX - backW - 6;
             if (mouseX >= backX && mouseX < backX + backW && mouseY >= btnY && mouseY < btnY + 14) {
                 closePicker();
                 setViewMode(ViewMode.GRAPH);
@@ -1140,22 +1163,6 @@ public class RgvRecipeScreen {
                     centerGraph(graphSelectingTab, width - 12, height - 52);
                 }
                 return true;
-            }
-
-            if (graphSelectingNode != null && graphSelectingNode.hasAssignedRecipe()) {
-                int resetW = 76;
-                int resetX = backX - resetW - 4;
-                if (mouseX >= resetX && mouseX < resetX + resetW && mouseY >= btnY && mouseY < btnY + 14) {
-                    if (graphSelectingTab != null) {
-                        graphSelectingTab.removeRecipeForIngredient(graphSelectingNode.getStack(), recipeManager);
-                    }
-                    closePicker();
-                    setViewMode(ViewMode.GRAPH);
-                    if (graphSelectingTab != null) {
-                        centerGraph(graphSelectingTab, width - 12, height - 52);
-                    }
-                    return true;
-                }
             }
         } else {
             // Transfer '+' button
@@ -1198,7 +1205,9 @@ public class RgvRecipeScreen {
         }
 
         if (mouseX < x || mouseX > x + width || mouseY < y || mouseY > y + height) {
-            close();
+            if (System.currentTimeMillis() - openTime > 250) {
+                close();
+            }
             return true;
         }
         return true;

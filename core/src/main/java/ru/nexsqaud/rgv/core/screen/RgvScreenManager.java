@@ -375,6 +375,62 @@ public class RgvScreenManager implements RgvRecipeScreen.RecipeLookupHandler {
         }
     }
 
+    public RgvStack getStackAt(int mouseX, int mouseY) {
+        List<RgvStack> bookmarks = config.getBookmarks();
+        if (!bookmarks.isEmpty()) {
+            int startX = leftSidebarX;
+            int startY = leftSidebarY + 16;
+            int cols = Math.max(1, leftSidebarW / 18);
+            for (int i = 0; i < bookmarks.size(); i++) {
+                int col = i % cols;
+                int row = i / cols;
+                int slotX = startX + col * 18;
+                int slotY = startY + row * 18;
+                if (slotY + 18 > leftSidebarY + leftSidebarH) break;
+                if (mouseX >= slotX && mouseX < slotX + 18 && mouseY >= slotY && mouseY < slotY + 18) {
+                    return bookmarks.get(i);
+                }
+            }
+        }
+
+        if (!isNeiActive()) {
+            List<RgvStack> pageItems = index.getItemsForCurrentPage();
+            int cols = index.getColumns();
+            int gridStartY = rightSidebarY + 18;
+            for (int i = 0; i < pageItems.size(); i++) {
+                int col = i % cols;
+                int row = i / cols;
+                int slotX = rightSidebarX + col * 18;
+                int slotY = gridStartY + row * 18;
+                if (mouseX >= slotX && mouseX < slotX + 18 && mouseY >= slotY && mouseY < slotY + 18) {
+                    return pageItems.get(i);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public boolean isBookmarkAt(int mouseX, int mouseY) {
+        List<RgvStack> bookmarks = config.getBookmarks();
+        if (!bookmarks.isEmpty()) {
+            int startX = leftSidebarX;
+            int startY = leftSidebarY + 16;
+            int cols = Math.max(1, leftSidebarW / 18);
+            for (int i = 0; i < bookmarks.size(); i++) {
+                int col = i % cols;
+                int row = i / cols;
+                int slotX = startX + col * 18;
+                int slotY = startY + row * 18;
+                if (slotY + 18 > leftSidebarY + leftSidebarH) break;
+                if (mouseX >= slotX && mouseX < slotX + 18 && mouseY >= slotY && mouseY < slotY + 18) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public boolean mouseClicked(int mouseX, int mouseY, int button) {
         if (!config.isOverlayEnabled()) return false;
 
@@ -392,12 +448,16 @@ public class RgvScreenManager implements RgvRecipeScreen.RecipeLookupHandler {
                 return true;
             }
 
-            if (hoveredStack != null && isHoveringBookmark) {
+            RgvStack bStack = getStackAt(mouseX, mouseY);
+            if (bStack == null && isHoveringBookmark) {
+                bStack = hoveredStack;
+            }
+            if (bStack != null && (isBookmarkAt(mouseX, mouseY) || isHoveringBookmark)) {
                 if (button == 0) {
-                    openRecipesFor(hoveredStack);
+                    openRecipesFor(bStack);
                     return true;
                 } else if (button == 1) {
-                    config.toggleBookmark(hoveredStack);
+                    config.toggleBookmark(bStack);
                     hoveredStack = null;
                     return true;
                 }
@@ -444,32 +504,37 @@ public class RgvScreenManager implements RgvRecipeScreen.RecipeLookupHandler {
             return true;
         }
 
-        // Click on Hovered Stack in Index or Bookmarks
-        if (hoveredStack != null && !hoveredStack.isEmpty()) {
-            if (isHoveringBookmark && button == 1) {
-                // Right-click on bookmark unpins it
-                config.toggleBookmark(hoveredStack);
+        // Click on Stack in Index or Bookmarks
+        RgvStack clickedStack = getStackAt(mouseX, mouseY);
+        if (clickedStack == null) {
+            clickedStack = hoveredStack;
+        }
+
+        if (clickedStack != null && !clickedStack.isEmpty()) {
+            boolean isBookmark = isBookmarkAt(mouseX, mouseY) || (isHoveringBookmark && clickedStack == hoveredStack);
+            if (isBookmark && button == 1) {
+                config.toggleBookmark(clickedStack);
+                hoveredStack = null;
                 return true;
             }
 
             RgvPlatform platform = RgvPlatform.get();
             if (config.isCheatMode() && platform != null && platform.isCheatModeAllowed()) {
-                // Cheat Mode: Left-click gives 64, Right-click gives 1
-                platform.sendGiveItemPacket(hoveredStack, button == 0);
+                platform.sendGiveItemPacket(clickedStack, button == 0);
                 return true;
             }
 
-            // Normal Mode: Left-click = Recipes ('R'), Right-click = Uses ('U')
             if (button == 0) {
-                openRecipesFor(hoveredStack);
+                openRecipesFor(clickedStack);
             } else if (button == 1) {
-                openUsesFor(hoveredStack);
+                openUsesFor(clickedStack);
             }
             return true;
         }
 
         return false;
     }
+
 
     public void mouseReleased(int mouseX, int mouseY, int button) {
         if (recipeScreen.isOpen()) {
