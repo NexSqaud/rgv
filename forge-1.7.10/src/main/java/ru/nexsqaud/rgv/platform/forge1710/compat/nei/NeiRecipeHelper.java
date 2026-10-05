@@ -339,8 +339,9 @@ public class NeiRecipeHelper {
                 }
             }
 
+            final boolean isSmelting = recipeName.toLowerCase().contains("smelt") || recipeName.toLowerCase().contains("furnace");
             final String catId = "nei." + recipeName.toLowerCase().replaceAll("[^a-z0-9_]", "_");
-            final RgvRecipeCategory category = new RgvRecipeCategory(catId, recipeName, outStack);
+            final RgvRecipeCategory category = new RgvRecipeCategory(catId, recipeName, outStack, isSmelting ? 126 : 140, isSmelting ? 60 : 60);
             final String recipeId = catId + "_" + System.currentTimeMillis() + "_" + recipeIndex;
 
             return new RgvRecipe() {
@@ -351,17 +352,25 @@ public class NeiRecipeHelper {
 
                 @Override
                 public void addWidgets(RgvWidgetHolder holder) {
-                    if (!placements.isEmpty()) {
+                    if (isSmelting) {
+                        RgvIngredient inIng = !inputs.isEmpty() ? inputs.get(0) : RgvStack.empty();
+                        holder.addLargeSlot(inIng, 16, 8);
+                        holder.addFlame(22, 38, true, 10000);
+                        holder.addArrow(51, 13, true, 10000);
+                        holder.addOutputSlot(outStack, 84, 8);
+                    } else if (!placements.isEmpty()) {
                         for (SlotPlacement p : placements) {
                             holder.addSlot(p.ingredient, p.x, p.y);
                         }
+                        holder.addArrow(66, 22, true);
+                        holder.addOutputSlot(outStack, 96, 18);
                     } else {
                         for (int i = 0; i < Math.min(inputs.size(), 9); i++) {
                             holder.addSlot(inputs.get(i), 6 + (i % 3) * 18, 6 + (i / 3) * 18);
                         }
+                        holder.addArrow(66, 22, true);
+                        holder.addOutputSlot(outStack, 96, 18);
                     }
-                    holder.addArrow(66, 22, true);
-                    holder.addOutputSlot(outStack, 96, 18);
                 }
             };
         } catch (Throwable t) {

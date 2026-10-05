@@ -73,6 +73,8 @@ public class GL11RgvRenderer implements RgvDrawContext {
     @Override
     public void drawTexture(String texturePath, int x, int y, int u, int v, int width, int height, int textureWidth, int textureHeight) {
         mc.getTextureManager().bindTexture(new ResourceLocation(texturePath));
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GL11.glDisable(GL11.GL_LIGHTING);
         GL11.glEnable(GL11.GL_BLEND);
         OpenGlHelper.glBlendFunc(770, 771, 1, 0);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);

@@ -34,7 +34,7 @@ public class VanillaRecipesPlugin1122 implements RgvPlugin {
     );
 
     public static final RgvRecipeCategory SMELTING_CATEGORY = new RgvRecipeCategory(
-            "rgv.smelting", "Smelting", Forge1122Platform.toRgvStack(new ItemStack(Blocks.FURNACE)), 110, 54
+            "rgv.smelting", "Smelting", Forge1122Platform.toRgvStack(new ItemStack(Blocks.FURNACE)), 126, 60
     );
 
     @Override
@@ -182,10 +182,10 @@ public class VanillaRecipesPlugin1122 implements RgvPlugin {
 
                 @Override
                 public void addWidgets(RgvWidgetHolder holder) {
-                    holder.addSlot(inStack, 10, 18);
-                    holder.addFlame(38, 20, false);
-                    holder.addArrow(56, 18, false);
-                    holder.addOutputSlot(outStack, 84, 18);
+                    holder.addLargeSlot(inStack, 16, 8);
+                    holder.addFlame(22, 38, true, 10000);
+                    holder.addArrow(51, 13, true, 10000);
+                    holder.addOutputSlot(outStack, 84, 8);
                 }
             });
         }

@@ -307,6 +307,8 @@ public class RgvRecipeScreen {
                 });
                 activeWidgets.add(placed);
             } else {
+                widget.setX(contentX + widget.getX());
+                widget.setY(contentY + widget.getY());
                 activeWidgets.add(widget);
             }
         }

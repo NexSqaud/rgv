@@ -10,6 +10,8 @@ import java.util.List;
  */
 public class ArrowWidget extends RgvWidget {
 
+    private static final String FURNACE_TEXTURE = "textures/gui/container/furnace.png";
+
     private final boolean animated;
     private final int durationMs;
     private String tooltipText = "";
@@ -17,7 +19,7 @@ public class ArrowWidget extends RgvWidget {
     public ArrowWidget(int x, int y, boolean animated, int durationMs) {
         super(x, y, 24, 17);
         this.animated = animated;
-        this.durationMs = durationMs > 0 ? durationMs : 2000;
+        this.durationMs = durationMs > 0 ? durationMs : 10000;
     }
 
     public ArrowWidget setTooltip(String text) {
@@ -27,24 +29,16 @@ public class ArrowWidget extends RgvWidget {
 
     @Override
     public void render(RgvDrawContext context, int mouseX, int mouseY, float delta) {
-        context.drawRect(x, y + 6, 16, 5, 0xFF8B8B8B);
-        for (int i = 0; i < 8; i++) {
-            context.drawRect(x + 16 + i, y + 8 - i, 1, 1 + i * 2, 0xFF8B8B8B);
-        }
+        // Draw empty arrow background from vanilla furnace texture (u=79, v=34)
+        context.drawTexture(FURNACE_TEXTURE, x, y, 79, 34, 24, 17, 256, 256);
 
-        if (animated) {
-            float progress = (float) (System.currentTimeMillis() % durationMs) / (float) durationMs;
-            int fillW = (int) (24 * progress);
-            if (fillW > 0) {
-                int rectPart = Math.min(fillW, 16);
-                context.drawRect(x, y + 6, rectPart, 5, 0xFF55FF55);
-                if (fillW > 16) {
-                    int trianglePart = fillW - 16;
-                    for (int i = 0; i < trianglePart; i++) {
-                        context.drawRect(x + 16 + i, y + 8 - i, 1, 1 + i * 2, 0xFF55FF55);
-                    }
-                }
-            }
+        // Progress at real furnace speed (200 ticks = 10,000 ms)
+        float progress = animated ? (float) (System.currentTimeMillis() % durationMs) / (float) durationMs : 0f;
+        int fillW = (int) (24 * progress);
+
+        // Draw filled arrow progress overlay from vanilla furnace texture (u=176, v=14)
+        if (fillW > 0) {
+            context.drawTexture(FURNACE_TEXTURE, x, y, 176, 14, fillW, 17, 256, 256);
         }
     }
 

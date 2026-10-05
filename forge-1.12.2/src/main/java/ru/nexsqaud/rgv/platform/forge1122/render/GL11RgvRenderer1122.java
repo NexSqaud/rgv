@@ -75,6 +75,8 @@ public class GL11RgvRenderer1122 implements RgvDrawContext {
     @Override
     public void drawTexture(String texturePath, int x, int y, int u, int v, int width, int height, int textureWidth, int textureHeight) {
         mc.getTextureManager().bindTexture(new ResourceLocation(texturePath));
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableLighting();
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
