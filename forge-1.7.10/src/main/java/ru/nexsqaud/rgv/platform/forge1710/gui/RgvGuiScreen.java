@@ -19,6 +19,7 @@ public class RgvGuiScreen extends GuiScreen {
     private final RgvScreenManager screenManager;
     private final RgvRecipeScreen recipeScreen;
     private final GL11RgvRenderer renderer;
+    private final long openTime = System.currentTimeMillis();
 
     public RgvGuiScreen(GuiScreen parentScreen, RgvScreenManager screenManager, RgvRecipeScreen recipeScreen) {
         this.parentScreen = parentScreen;
@@ -67,6 +68,9 @@ public class RgvGuiScreen extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) {
+        if (System.currentTimeMillis() - openTime < 200) {
+            return;
+        }
         if (recipeScreen.isOpen()) {
             recipeScreen.mouseClicked(mouseX, mouseY, button);
             if (!recipeScreen.isOpen()) {

@@ -45,6 +45,11 @@ public class GuiOverlayHooks {
     private boolean wasODown = false;
     private boolean wasEscDown = false;
 
+    private boolean wasNeiLeftDown = false;
+    private boolean wasNeiRightDown = false;
+    private boolean wasNeiEscDown = false;
+    private boolean wasNeiGDown = false;
+
     private static Field fGuiLeft;
     private static Field fGuiTop;
     private static Field fXSize;
@@ -132,6 +137,35 @@ public class GuiOverlayHooks {
 
         GuiContainer container = (GuiContainer) event.gui;
 
+        // Reset all mouse and key states to prevent stale input from prior screen transitions
+        wasLeftDown = false;
+        wasRightDown = false;
+        wasRDown = false;
+        wasUDown = false;
+        wasADown = false;
+        wasGDown = false;
+        wasFDown = false;
+        wasODown = false;
+        wasEscDown = false;
+
+        wasNeiLeftDown = false;
+        wasNeiRightDown = false;
+        wasNeiEscDown = false;
+        wasNeiGDown = false;
+
+        int guiLeft = 0;
+        int guiTop = 0;
+        int xSize = 176;
+        int ySize = 166;
+        try {
+            if (fGuiLeft != null) guiLeft = fGuiLeft.getInt(container);
+            if (fGuiTop != null) guiTop = fGuiTop.getInt(container);
+            if (fXSize != null) xSize = fXSize.getInt(container);
+            if (fYSize != null) ySize = fYSize.getInt(container);
+        } catch (Exception ignored) {
+        }
+        screenManager.updateBounds(event.gui.width, event.gui.height, guiLeft, guiTop, xSize, ySize);
+
         if (Forge1710Platform.isNeiPresent()) {
             NeiInputBridge.register(screenManager);
             NeiRecipeHelper.ensureCreativeGuiHandlerRegistered(screenManager);
@@ -155,10 +189,13 @@ public class GuiOverlayHooks {
                 neiBtn0 = null;
                 neiBtn1 = null;
                 hostBtn = new RgvHostPlannerButton(btnId++, screenManager);
+                hostBtn.xPosition = guiLeft - 22;
+                hostBtn.yPosition = guiTop + 4;
                 event.buttonList.add(hostBtn);
             }
         }
     }
+
 
     @SubscribeEvent
     public void onActionPerformedPre(GuiScreenEvent.ActionPerformedEvent.Pre event) {
@@ -377,16 +414,16 @@ public class GuiOverlayHooks {
 
             // Handle modal clicks & scrolling
             boolean isLeftDown = Mouse.isButtonDown(0);
-            if (isLeftDown && !wasLeftDown) {
+            if (isLeftDown && !wasNeiLeftDown) {
                 screenManager.getRecipeScreen().mouseClicked(mouseX, mouseY, 0);
             }
-            wasLeftDown = isLeftDown;
+            wasNeiLeftDown = isLeftDown;
 
             boolean isRightDown = Mouse.isButtonDown(1);
-            if (isRightDown && !wasRightDown) {
+            if (isRightDown && !wasNeiRightDown) {
                 screenManager.getRecipeScreen().mouseClicked(mouseX, mouseY, 1);
             }
-            wasRightDown = isRightDown;
+            wasNeiRightDown = isRightDown;
 
             int dWheel = Mouse.getDWheel();
             if (dWheel != 0) {
@@ -394,10 +431,10 @@ public class GuiOverlayHooks {
             }
 
             boolean isEsc = Keyboard.isKeyDown(Keyboard.KEY_ESCAPE);
-            if (isEsc && !wasEscDown) {
+            if (isEsc && !wasNeiEscDown) {
                 screenManager.getRecipeScreen().close();
             }
-            wasEscDown = isEsc;
+            wasNeiEscDown = isEsc;
             return;
         }
 
@@ -412,16 +449,16 @@ public class GuiOverlayHooks {
         }
 
         boolean isLeftDown = Mouse.isButtonDown(0);
-        if (isLeftDown && !wasLeftDown) {
+        if (isLeftDown && !wasNeiLeftDown) {
             NeiRecipeHelper.mouseClicked(container, mouseX, mouseY, 0, screenManager);
         }
-        wasLeftDown = isLeftDown;
+        wasNeiLeftDown = isLeftDown;
 
         boolean isG = Keyboard.isKeyDown(Keyboard.KEY_G);
-        if (isG && !wasGDown) {
+        if (isG && !wasNeiGDown) {
             NeiRecipeHelper.addCurrentRecipeToGraph(container, mouseX, mouseY, screenManager);
         }
-        wasGDown = isG;
+        wasNeiGDown = isG;
     }
 
     private Slot getHoveredSlot(GuiContainer container) {

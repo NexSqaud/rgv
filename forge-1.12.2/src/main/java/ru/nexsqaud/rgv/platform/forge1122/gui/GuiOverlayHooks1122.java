@@ -84,13 +84,33 @@ public class GuiOverlayHooks1122 {
     public void onInitGui(GuiScreenEvent.InitGuiEvent.Post event) {
         if (event.getGui() instanceof RgvGuiScreen1122) return;
 
+        wasGDown = false;
+        wasADown = false;
+        wasRDown = false;
+        wasUDown = false;
+
         int btnId = 64000;
         if (event.getGui().getClass().getName().contains("RecipesGui")) {
             jeiBtn = new RgvJeiGraphButton1122(btnId++, event.getGui(), screenManager);
             event.getButtonList().add(jeiBtn);
             hostBtn = null;
         } else if (event.getGui() instanceof GuiContainer) {
+            GuiContainer container = (GuiContainer) event.getGui();
+            int guiLeft = 0;
+            int guiTop = 0;
+            int xSize = 176;
+            int ySize = 166;
+            try {
+                if (fGuiLeft != null) guiLeft = fGuiLeft.getInt(container);
+                if (fGuiTop != null) guiTop = fGuiTop.getInt(container);
+                if (fXSize != null) xSize = fXSize.getInt(container);
+                if (fYSize != null) ySize = fYSize.getInt(container);
+            } catch (Exception ignored) {}
+            screenManager.updateBounds(event.getGui().width, event.getGui().height, guiLeft, guiTop, xSize, ySize);
+
             hostBtn = new RgvHostPlannerButton1122(btnId++, screenManager);
+            hostBtn.x = guiLeft - 22;
+            hostBtn.y = guiTop + 4;
             event.getButtonList().add(hostBtn);
             jeiBtn = null;
         }
