@@ -107,6 +107,19 @@ public class Forge1710Platform implements RgvPlatform {
     }
 
     @Override
+    public RgvStack getRemainderItem(RgvStack stack) {
+        if (stack == null || stack.isEmpty()) return RgvStack.empty();
+        ItemStack is = toMinecraftStack(stack);
+        if (is != null && is.getItem() != null) {
+            ItemStack container = is.getItem().getContainerItem(is);
+            if (container != null) {
+                return toRgvStack(container);
+            }
+        }
+        return RgvStack.empty();
+    }
+
+    @Override
     public boolean isInventoryKey(int keyCode) {
         if (FMLCommonHandler.instance().getSide().isClient()) {
             return ClientTooltipHelper.isInventoryKey(keyCode);
