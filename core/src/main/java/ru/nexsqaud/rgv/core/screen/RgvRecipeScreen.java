@@ -6,6 +6,7 @@ import ru.nexsqaud.rgv.api.widget.RgvWidgetHolder;
 import ru.nexsqaud.rgv.api.widget.SlotWidget;
 import ru.nexsqaud.rgv.core.config.RgvConfig;
 import ru.nexsqaud.rgv.core.platform.RgvPlatform;
+import ru.nexsqaud.rgv.core.platform.TransferHelper;
 import ru.nexsqaud.rgv.core.platform.TransferStatus;
 import ru.nexsqaud.rgv.core.recipe.RgvRecipeManager;
 import ru.nexsqaud.rgv.core.tree.RgvCraftGraph;
@@ -880,7 +881,14 @@ public class RgvRecipeScreen {
                         tip.add("\u00a7cMissing required ingredients in inventory");
                     } else {
                         tip.add("\u00a7cTransfer Disabled");
-                        tip.add("\u00a7cNo suitable container slots (workbench, inventory, or furnace)");
+                        String required = platform != null ? platform.getRequiredContainerDescription(current) : TransferHelper.getRequiredContainerDescription(current);
+                        tip.add("\u00a7cRequires " + required);
+                        if (platform != null && current != null) {
+                            RgvInventory inv = platform.getPlayerInventory();
+                            if (inv != null && !current.canCraft(inv)) {
+                                tip.add("\u00a7cMissing required ingredients");
+                            }
+                        }
                     }
                     context.drawTooltip(tip, mouseX, mouseY);
                     return;

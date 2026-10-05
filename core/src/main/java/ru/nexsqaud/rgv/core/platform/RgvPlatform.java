@@ -62,6 +62,10 @@ public interface RgvPlatform {
         return TransferStatus.AVAILABLE;
     }
 
+    default String getRequiredContainerDescription(RgvRecipe recipe) {
+        return TransferHelper.getRequiredContainerDescription(recipe);
+    }
+
     void sendGiveItemPacket(RgvStack stack, boolean fullStack);
 
     boolean isCheatModeAllowed();

@@ -174,4 +174,40 @@ public class RgvTransferStatusTest {
         assertEquals(1, updatedIronNode.getChildren().size());
         assertTrue(updatedIronNode.getChildren().get(0).getStack().matches(ironOre));
     }
+
+    @Test
+    public void testRequiredContainerDescription() {
+        RgvRecipeCategory craftCat = new RgvRecipeCategory("minecraft.crafting", "Crafting", RgvStack.empty());
+        RgvRecipeCategory smeltCat = new RgvRecipeCategory("minecraft.smelting", "Smelting", RgvStack.empty());
+        RgvRecipeCategory crusherCat = new RgvRecipeCategory("mod.crusher", "Crusher", RgvStack.empty());
+
+        RgvStack wood = RgvStack.of("minecraft:log", 0, 1, "Wood");
+        RgvStack plank = RgvStack.of("minecraft:planks", 0, 4, "Planks");
+        RgvStack iron = RgvStack.of("minecraft:iron_ingot", 0, 1, "Iron Ingot");
+        RgvStack ironOre = RgvStack.of("minecraft:iron_ore", 0, 1, "Iron Ore");
+        RgvStack dust = RgvStack.of("mod:iron_dust", 0, 2, "Iron Dust");
+
+        // 1. 2x2 Crafting Recipe (<= 4 inputs)
+        DummyRecipe craft2x2 = new DummyRecipe("planks", craftCat, Collections.singletonList(wood), plank);
+        assertEquals("2x2 crafting grid", ru.nexsqaud.rgv.core.platform.TransferHelper.getRequiredContainerDescription(craft2x2));
+
+        // 2. 3x3 Crafting Recipe (has inputs in slots outside 2x2, e.g. 9 slots or slot index 2/5/6/7/8)
+        List<RgvIngredient> inputs9 = new ArrayList<>();
+        for (int i = 0; i < 9; i++) {
+            inputs9.add(iron);
+        }
+        DummyRecipe craft3x3 = new DummyRecipe("iron_block", craftCat, inputs9, RgvStack.of("minecraft:iron_block", 0, 1, "Iron Block"));
+        assertEquals("3x3 crafting grid", ru.nexsqaud.rgv.core.platform.TransferHelper.getRequiredContainerDescription(craft3x3));
+
+        // 3. Furnace Recipe
+        DummyRecipe smelt = new DummyRecipe("smelt_iron", smeltCat, Collections.singletonList(ironOre), iron);
+        assertEquals("furnace", ru.nexsqaud.rgv.core.platform.TransferHelper.getRequiredContainerDescription(smelt));
+
+        // 4. Custom Category
+        DummyRecipe crush = new DummyRecipe("crush_ore", crusherCat, Collections.singletonList(ironOre), dust);
+        assertEquals("Crusher", ru.nexsqaud.rgv.core.platform.TransferHelper.getRequiredContainerDescription(crush));
+
+        // 5. Null
+        assertEquals("suitable container", ru.nexsqaud.rgv.core.platform.TransferHelper.getRequiredContainerDescription(null));
+    }
 }
