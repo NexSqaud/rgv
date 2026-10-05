@@ -135,4 +135,24 @@ public class RgvRecipeTreeTest {
         Map<RgvStack, Long> raw = tree.getTotalRawMaterials();
         assertTrue(raw.isEmpty());
     }
+
+    @Test
+    public void testRecipeTreeLeftoversCalculation() {
+        RgvRecipeCategory cat = new RgvRecipeCategory("crafting", "Crafting", RgvStack.empty());
+        RgvRecipeManager manager = new RgvRecipeManager();
+
+        RgvStack log = RgvStack.of("minecraft:log", 0, 1, "Oak Log");
+        RgvStack plank = RgvStack.of("minecraft:planks", 0, 4, "Oak Planks");
+
+        // 1 Log -> 4 Planks
+        manager.addRecipe(new SimpleRecipe("planks", cat, Collections.singletonList(log), plank));
+
+        // Solve for 1 Plank with empty inventory -> crafts 1 log into 4 planks -> 3 planks leftover
+        RgvRecipeTree tree = new RgvRecipeTree(manager, new MockInventory(), plank, 1);
+        Map<RgvStack, Long> leftovers = tree.getTotalLeftovers();
+
+        assertNotNull(leftovers);
+        assertEquals(1, leftovers.size());
+        assertEquals(3L, leftovers.get(plank.copyWithAmount(1)).longValue());
+    }
 }

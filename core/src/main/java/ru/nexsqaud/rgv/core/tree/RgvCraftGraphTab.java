@@ -368,4 +368,91 @@ public class RgvCraftGraphTab {
             }
         }
     }
+
+    public Map<RgvStack, Long> getLeftovers() {
+        Map<RgvStack, Long> leftovers = new LinkedHashMap<>();
+        if (rootNode == null || rootRecipe == null || targetStack == null || targetStack.isEmpty()) {
+            return leftovers;
+        }
+
+        Map<String, Long> produced = new LinkedHashMap<>();
+        Map<String, Long> consumed = new LinkedHashMap<>();
+        Map<String, RgvStack> stackSample = new LinkedHashMap<>();
+
+        String rootKey = getIngredientKey(targetStack);
+        consumed.put(rootKey, (long) targetAmount);
+        stackSample.put(rootKey, targetStack.copyWithAmount(1));
+
+        collectProductionAndConsumption(rootNode, produced, consumed, stackSample);
+
+        for (Map.Entry<String, Long> entry : produced.entrySet()) {
+            String key = entry.getKey();
+            long prod = entry.getValue();
+            long cons = consumed.getOrDefault(key, 0L);
+            if (prod > cons) {
+                RgvStack sample = stackSample.get(key);
+                if (sample != null && !sample.isEmpty()) {
+                    leftovers.put(sample.copyWithAmount(1), prod - cons);
+                }
+            }
+        }
+
+        return leftovers;
+    }
+
+    private void collectProductionAndConsumption(RgvGraphNode node, Map<String, Long> produced, Map<String, Long> consumed, Map<String, RgvStack> stackSample) {
+        if (node == null) return;
+
+        boolean isRoot = (node == rootNode);
+        RgvRecipe recipe = isRoot ? rootRecipe : node.getAssignedRecipe();
+
+        if (recipe != null) {
+            RgvStack primaryOutput = isRoot ? targetStack : node.getStack();
+            long outPerCraft = 1;
+            for (RgvStack out : recipe.getOutputs()) {
+                if (primaryOutput.matches(out)) {
+                    outPerCraft = Math.max(1, out.getAmount());
+                    break;
+                }
+            }
+
+            long needed = isRoot ? targetAmount : node.getAmount();
+            long craftsNeeded = (long) Math.ceil((double) needed / (double) outPerCraft);
+
+            for (RgvStack out : recipe.getOutputs()) {
+                if (out == null || out.isEmpty()) continue;
+                String outKey = getIngredientKey(out);
+                long amt = out.getAmount() * craftsNeeded;
+                produced.put(outKey, produced.getOrDefault(outKey, 0L) + amt);
+                stackSample.putIfAbsent(outKey, out.copyWithAmount(1));
+            }
+
+            ru.nexsqaud.rgv.core.platform.RgvPlatform platform = ru.nexsqaud.rgv.core.platform.RgvPlatform.get();
+            if (platform != null) {
+                for (RgvIngredient ing : recipe.getInputs()) {
+                    if (ing == null || ing.isEmpty()) continue;
+                    List<RgvStack> stacks = ing.getRgvStacks();
+                    if (stacks.isEmpty()) continue;
+                    RgvStack primary = stacks.get(0);
+                    RgvStack rem = platform.getRemainderItem(primary);
+                    if (rem != null && !rem.isEmpty()) {
+                        String remKey = getIngredientKey(rem);
+                        long remAmt = Math.max(1, ing.getAmount()) * craftsNeeded;
+                        produced.put(remKey, produced.getOrDefault(remKey, 0L) + remAmt);
+                        stackSample.putIfAbsent(remKey, rem.copyWithAmount(1));
+                    }
+                }
+            }
+        }
+
+        if (!isRoot) {
+            String nodeKey = getIngredientKey(node.getStack());
+            consumed.put(nodeKey, consumed.getOrDefault(nodeKey, 0L) + node.getAmount());
+            stackSample.putIfAbsent(nodeKey, node.getStack().copyWithAmount(1));
+        }
+
+        for (RgvGraphNode child : node.getChildren()) {
+            collectProductionAndConsumption(child, produced, consumed, stackSample);
+        }
+    }
 }

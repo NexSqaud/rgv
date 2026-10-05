@@ -51,6 +51,7 @@ public class RgvRecipeTree {
     private final RgvStack rootStack;
     private Node rootNode;
     private final Map<RgvStack, Long> totalRawMaterials = new HashMap<>();
+    private final Map<RgvStack, Long> totalLeftovers = new LinkedHashMap<>();
 
     public RgvRecipeTree(RgvRecipeManager recipeManager, RgvInventory inventory, RgvStack rootStack, long amount) {
         this.recipeManager = recipeManager;
@@ -65,6 +66,10 @@ public class RgvRecipeTree {
 
     public Map<RgvStack, Long> getTotalRawMaterials() {
         return Collections.unmodifiableMap(totalRawMaterials);
+    }
+
+    public Map<RgvStack, Long> getTotalLeftovers() {
+        return Collections.unmodifiableMap(totalLeftovers);
     }
 
     /**
@@ -123,11 +128,31 @@ public class RgvRecipeTree {
         if (craftsNeeded > 0) {
             visited.add(key);
 
+            long totalProduced = craftsNeeded * producedPerCraft;
+            long surplus = totalProduced - missing;
+            if (surplus > 0) {
+                addLeftover(target, surplus);
+            }
+
+            for (RgvStack out : chosenRecipe.getOutputs()) {
+                if (out != null && !out.isEmpty() && !target.matches(out)) {
+                    addLeftover(out, out.getAmount() * craftsNeeded);
+                }
+            }
+
+            ru.nexsqaud.rgv.core.platform.RgvPlatform platform = ru.nexsqaud.rgv.core.platform.RgvPlatform.get();
             for (RgvIngredient input : chosenRecipe.getInputs()) {
                 if (input == null || input.isEmpty()) continue;
                 List<RgvStack> stacks = input.getRgvStacks();
                 if (stacks.isEmpty()) continue;
                 RgvStack primaryInput = stacks.get(0);
+
+                if (platform != null) {
+                    RgvStack rem = platform.getRemainderItem(primaryInput);
+                    if (rem != null && !rem.isEmpty()) {
+                        addLeftover(rem, Math.max(1, input.getAmount()) * craftsNeeded);
+                    }
+                }
 
                 long subRequired;
                 try {
@@ -144,6 +169,14 @@ public class RgvRecipeTree {
         }
 
         return node;
+    }
+
+    private void addLeftover(RgvStack stack, long amount) {
+        if (stack == null || stack.isEmpty() || amount <= 0) return;
+        RgvStack base = stack.copyWithAmount(1);
+        long current = totalLeftovers.getOrDefault(base, 0L);
+        long next = (current > Long.MAX_VALUE - amount) ? Long.MAX_VALUE / 2 : (current + amount);
+        totalLeftovers.put(base, next);
     }
 
     private void addRawMaterial(RgvStack stack, long amount) {

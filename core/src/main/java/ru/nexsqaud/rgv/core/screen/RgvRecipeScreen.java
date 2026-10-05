@@ -67,6 +67,8 @@ public class RgvRecipeScreen {
     private long hoveredLeafRequired = 0;
     private long hoveredLeafAvailable = 0;
     private RgvGraphNode hoveredGraphNode = null;
+    private RgvStack hoveredLeftoverStack = null;
+    private long hoveredLeftoverAmount = 0;
     private boolean open = false;
 
     // Item selector pagination for manual new tab
@@ -330,6 +332,8 @@ public class RgvRecipeScreen {
         hoveredWidget = null;
         hoveredLeafStack = null;
         hoveredGraphNode = null;
+        hoveredLeftoverStack = null;
+        hoveredLeftoverAmount = 0;
 
         RgvPlatform platform = RgvPlatform.get();
         int screenW = platform != null ? platform.getScreenWidth() : 400;
@@ -612,7 +616,8 @@ public class RgvRecipeScreen {
         context.drawRect(plusX, controlY + 2, 12, 12, plusHover ? 0xFF888888 : 0xFF555555);
         context.drawText("+", plusX + 3, controlY + 3, 0xFFFFFF, false);
 
-        renderTopRightLeafRequirements(context, activeTab, inv, mouseX, mouseY, delta);
+        int nextBoxY = renderTopRightLeafRequirements(context, activeTab, inv, mouseX, mouseY, delta);
+        renderTopRightLeftovers(context, activeTab, nextBoxY, mouseX, mouseY, delta);
     }
 
     private void renderGraphGrid(RgvDrawContext context, int vx, int vy, int vw, int vh) {
@@ -703,9 +708,9 @@ public class RgvRecipeScreen {
         }
     }
 
-    private void renderTopRightLeafRequirements(RgvDrawContext context, RgvCraftGraphTab tab, RgvInventory inv, int mouseX, int mouseY, float delta) {
+    private int renderTopRightLeafRequirements(RgvDrawContext context, RgvCraftGraphTab tab, RgvInventory inv, int mouseX, int mouseY, float delta) {
         Map<RgvStack, Long> leaves = tab.getLeafNodeRequirements();
-        if (leaves.isEmpty()) return;
+        if (leaves.isEmpty()) return y + 48;
 
         int count = leaves.size();
         int boxW = Math.max(120, Math.min(200, count * 26 + 12));
@@ -744,6 +749,49 @@ public class RgvRecipeScreen {
 
             leafX += 22;
             if (leafX + 20 > boxX + boxW) break;
+        }
+
+        return boxY + boxH + 4;
+    }
+
+    private void renderTopRightLeftovers(RgvDrawContext context, RgvCraftGraphTab tab, int startY, int mouseX, int mouseY, float delta) {
+        Map<RgvStack, Long> leftovers = tab.getLeftovers();
+        if (leftovers.isEmpty()) return;
+
+        int count = leftovers.size();
+        int boxW = Math.max(120, Math.min(200, count * 26 + 12));
+        int boxH = 34;
+        int boxX = x + width - boxW - 8;
+        int boxY = startY;
+
+        // Background box for leftovers
+        context.drawRect(boxX, boxY, boxW, boxH, 0xEE1E1E1E);
+        context.drawRect(boxX + 1, boxY + 1, boxW - 2, boxH - 2, 0xEE3D3D3D);
+        context.drawText("Leftovers:", boxX + 4, boxY + 3, 0xAADDFF, true);
+
+        int slotX = boxX + 4;
+        int slotY = boxY + 13;
+
+        for (Map.Entry<RgvStack, Long> entry : leftovers.entrySet()) {
+            RgvStack stack = entry.getKey();
+            long amount = entry.getValue();
+
+            // Mini slot with muted blue tint for surplus
+            context.drawRect(slotX, slotY, 18, 18, 0xFF141414);
+            context.drawRect(slotX + 1, slotY + 1, 16, 16, 0xFF22384D);
+            stack.render(context, slotX + 1, slotY + 1, delta);
+
+            String countStr = "+" + amount;
+            context.drawText(countStr, slotX + 18 - context.getTextWidth(countStr), slotY + 9, 0x88CCFF, true);
+
+            // Hover check
+            if (mouseX >= slotX && mouseX < slotX + 18 && mouseY >= slotY && mouseY < slotY + 18) {
+                hoveredLeftoverStack = stack;
+                hoveredLeftoverAmount = amount;
+            }
+
+            slotX += 22;
+            if (slotX + 20 > boxX + boxW) break;
         }
     }
 
@@ -966,6 +1014,9 @@ public class RgvRecipeScreen {
                 tip.add("\u00a7eRequired for plan: " + hoveredGraphNode.getAmount());
                 if (hoveredGraphNode.hasAssignedRecipe()) {
                     tip.add("\u00a7aCrafted with: " + hoveredGraphNode.getAssignedRecipe().getCategory().getTitle());
+                    if (hoveredGraphNode.getSurplusAmount() > 0) {
+                        tip.add("\u00a7bSurplus produced: +" + hoveredGraphNode.getSurplusAmount());
+                    }
                     tip.add("\u00a77Click to change or reset recipe");
                 } else if (hoveredGraphNode.canCraft(recipeManager)) {
                     tip.add("\u00a7bClick to select crafting recipe");
@@ -988,6 +1039,14 @@ public class RgvRecipeScreen {
                     }
                 }
                 context.drawTooltip(tip, mouseX, mouseY);
+                return;
+            }
+
+            if (hoveredLeftoverStack != null && !hoveredLeftoverStack.isEmpty()) {
+                List<String> tip = new ArrayList<>(hoveredLeftoverStack.getTooltip());
+                tip.add("\u00a7bLeftover from crafting: +" + hoveredLeftoverAmount);
+                context.drawTooltip(tip, mouseX, mouseY);
+                return;
             }
         }
     }
@@ -1372,6 +1431,8 @@ public class RgvRecipeScreen {
                 hovered = hoveredGraphNode.getStack();
             } else if (hoveredLeafStack != null && !hoveredLeafStack.isEmpty()) {
                 hovered = hoveredLeafStack;
+            } else if (hoveredLeftoverStack != null && !hoveredLeftoverStack.isEmpty()) {
+                hovered = hoveredLeftoverStack;
             }
         }
 

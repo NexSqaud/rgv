@@ -96,4 +96,17 @@ public class RgvGraphNode {
     public boolean isMouseOver(int mouseX, int mouseY) {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
     }
+
+    public long getSurplusAmount() {
+        if (assignedRecipe == null || stack == null || stack.isEmpty() || amount <= 0) return 0;
+        long outPerCraft = 1;
+        for (RgvStack out : assignedRecipe.getOutputs()) {
+            if (stack.matches(out)) {
+                outPerCraft = Math.max(1, out.getAmount());
+                break;
+            }
+        }
+        long craftsNeeded = (long) Math.ceil((double) amount / (double) outPerCraft);
+        return (craftsNeeded * outPerCraft) - amount;
+    }
 }

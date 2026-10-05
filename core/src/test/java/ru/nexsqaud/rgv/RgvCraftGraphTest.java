@@ -239,4 +239,82 @@ public class RgvCraftGraphTest {
         assertEquals(27, tab.getRootNode().getChildren().get(0).getAmount());
         assertEquals(27L, tab.getLeafNodeRequirements().get(wheat.copyWithAmount(1)).longValue());
     }
+
+    @Test
+    public void testCraftGraphLeftoversSingleRecipeBatchOutput() {
+        RgvRecipeCategory cat = new RgvRecipeCategory("crafting", "Crafting", RgvStack.empty());
+        RgvRecipeManager manager = new RgvRecipeManager();
+
+        RgvStack coal = RgvStack.of("minecraft:coal", 0, 1, "Coal");
+        RgvStack stick = RgvStack.of("minecraft:stick", 0, 1, "Stick");
+        RgvStack torch = RgvStack.of("minecraft:torch", 0, 4, "Torch");
+
+        SimpleRecipe torchRecipe = new SimpleRecipe("torch", cat, Arrays.asList(coal, stick), torch);
+        manager.addRecipe(torchRecipe);
+
+        RgvCraftGraph graph = new RgvCraftGraph();
+        RgvCraftGraphTab tab = graph.addTabForRecipe(torchRecipe, 1, manager, null);
+        assertNotNull(tab);
+
+        // When target is 1 torch, recipe produces 4 torches -> 3 torches leftover
+        Map<RgvStack, Long> leftovers = tab.getLeftovers();
+        assertEquals(1, leftovers.size());
+        assertEquals(3L, leftovers.get(torch.copyWithAmount(1)).longValue());
+
+        // When target is 4 torches -> 0 torches leftover
+        tab.setTargetAmount(4, manager);
+        leftovers = tab.getLeftovers();
+        assertTrue(leftovers.isEmpty());
+
+        // When target is 5 torches -> 2 crafts produce 8 torches -> 3 torches leftover
+        tab.setTargetAmount(5, manager);
+        leftovers = tab.getLeftovers();
+        assertEquals(1, leftovers.size());
+        assertEquals(3L, leftovers.get(torch.copyWithAmount(1)).longValue());
+    }
+
+    @Test
+    public void testCraftGraphLeftoversMultiLevelCrafting() {
+        RgvRecipeCategory cat = new RgvRecipeCategory("crafting", "Crafting", RgvStack.empty());
+        RgvRecipeManager manager = new RgvRecipeManager();
+
+        RgvStack log = RgvStack.of("minecraft:log", 0, 1, "Oak Log");
+        RgvStack plank = RgvStack.of("minecraft:planks", 0, 4, "Oak Planks");
+        RgvStack stick = RgvStack.of("minecraft:stick", 0, 4, "Stick");
+        RgvStack pickaxe = RgvStack.of("minecraft:iron_pickaxe", 0, 1, "Wooden Pickaxe");
+
+        SimpleRecipe plankRecipe = new SimpleRecipe("planks", cat, Collections.singletonList(log), plank);
+        SimpleRecipe stickRecipe = new SimpleRecipe("sticks", cat, Collections.singletonList(plank.copyWithAmount(2)), stick);
+        SimpleRecipe pickaxeRecipe = new SimpleRecipe("pickaxe", cat,
+                Arrays.asList(plank.copyWithAmount(3), stick.copyWithAmount(2)), pickaxe);
+
+        manager.addRecipe(plankRecipe);
+        manager.addRecipe(stickRecipe);
+        manager.addRecipe(pickaxeRecipe);
+
+        RgvCraftGraph graph = new RgvCraftGraph();
+        RgvCraftGraphTab tab = graph.addTabForRecipe(pickaxeRecipe, 1, manager, null);
+
+        // Assign sub-recipe for sticks
+        tab.setRecipeForIngredient(stick, stickRecipe, manager);
+        // Assign sub-recipe for planks
+        tab.setRecipeForIngredient(plank, plankRecipe, manager);
+
+        Map<RgvStack, Long> leftovers = tab.getLeftovers();
+        assertFalse(leftovers.isEmpty());
+
+        // Sticks: 1 craft produces 4, 2 consumed for pickaxe -> 2 leftover
+        assertEquals(2L, leftovers.get(stick.copyWithAmount(1)).longValue());
+
+        // Planks:
+        // Pickaxe needs 3 planks -> 1 craft of log produces 4 -> 1 leftover.
+        // Stick needs 2 planks -> 1 craft of log produces 4 -> 2 leftover.
+        // Total planks produced = 8, consumed = 5 -> 3 leftover.
+        assertEquals(3L, leftovers.get(plank.copyWithAmount(1)).longValue());
+
+        // Pickaxe has 0 leftover
+        assertFalse(leftovers.containsKey(pickaxe.copyWithAmount(1)));
+        // Log is raw material leaf -> 0 leftover
+        assertFalse(leftovers.containsKey(log.copyWithAmount(1)));
+    }
 }
