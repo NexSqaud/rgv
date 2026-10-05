@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.inventory.ClickType;
 import net.minecraft.inventory.Container;
+import net.minecraft.inventory.ContainerFurnace;
 import net.minecraft.inventory.ContainerPlayer;
 import net.minecraft.inventory.ContainerWorkbench;
 import net.minecraft.inventory.Slot;
@@ -30,6 +31,13 @@ public class ClientTransferHelper1122 {
 
         // Ensure the mouse cursor is not currently holding an item
         if (!player.inventory.getItemStack().isEmpty()) return false;
+
+        if (isSmeltingRecipe(recipe)) {
+            if (!(container instanceof ContainerFurnace)) {
+                return false;
+            }
+            return transferSmelting(mc, player, container, recipe, maxCraft);
+        }
 
         boolean isWorkbench = container instanceof ContainerWorkbench;
         boolean isPlayerCrafting = container instanceof ContainerPlayer;
@@ -214,5 +222,108 @@ public class ClientTransferHelper1122 {
             if (needed[i] > 0) return i;
         }
         return -1;
+    }
+
+    public static boolean isSmeltingRecipe(RgvRecipe recipe) {
+        if (recipe == null || recipe.getCategory() == null) return false;
+        String id = recipe.getCategory().getId().toLowerCase();
+        String title = recipe.getCategory().getTitle().toLowerCase();
+        return id.contains("smelt") || id.contains("furnace") || title.contains("smelt");
+    }
+
+    public static boolean isCraftingRecipe(RgvRecipe recipe) {
+        if (recipe == null || recipe.getCategory() == null) return false;
+        String id = recipe.getCategory().getId().toLowerCase();
+        String title = recipe.getCategory().getTitle().toLowerCase();
+        return id.contains("craft") || title.contains("craft");
+    }
+
+    public static boolean hasSuitableSlotsFor(RgvRecipe recipe) {
+        if (recipe == null) return false;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.player == null) return false;
+        Container container = mc.player.openContainer;
+        if (container == null) return false;
+
+        if (isSmeltingRecipe(recipe)) {
+            return container instanceof ContainerFurnace;
+        }
+
+        if (isCraftingRecipe(recipe) || (!isSmeltingRecipe(recipe) && recipe.getInputs().size() <= 9)) {
+            if (container instanceof ContainerWorkbench) {
+                return true;
+            }
+            if (container instanceof ContainerPlayer) {
+                return canFitIn2x2(recipe);
+            }
+            return false;
+        }
+
+        return false;
+    }
+
+    private static boolean transferSmelting(Minecraft mc, EntityPlayerSP player, Container container, RgvRecipe recipe, boolean maxCraft) {
+        List<RgvIngredient> inputs = recipe.getInputs();
+        if (inputs.isEmpty() || inputs.get(0) == null || inputs.get(0).isEmpty()) return false;
+        RgvIngredient inputIng = inputs.get(0);
+
+        List<Slot> allSlots = container.inventorySlots;
+        if (allSlots == null || allSlots.size() < 39) return false;
+
+        Slot furnaceInputSlot = allSlots.get(0);
+        List<Slot> playerSlots = new ArrayList<>();
+        for (int i = 3; i < allSlots.size(); i++) {
+            Slot s = allSlots.get(i);
+            if (s != null) playerSlots.add(s);
+        }
+
+        // If furnace input slot has an incompatible item, shift click it into player inventory
+        if (furnaceInputSlot.getHasStack()) {
+            ru.nexsqaud.rgv.api.RgvStack inStack = Forge1122Platform.toRgvStack(furnaceInputSlot.getStack());
+            if (!inputIng.matches(inStack)) {
+                mc.playerController.windowClick(container.windowId, furnaceInputSlot.slotNumber, 0, ClickType.QUICK_MOVE, player);
+                if (furnaceInputSlot.getHasStack()) {
+                    return false;
+                }
+            }
+        }
+
+        // Find matching player slots
+        Slot sourceSlot = null;
+        for (Slot pSlot : playerSlots) {
+            if (pSlot.getHasStack() && inputIng.matches(Forge1122Platform.toRgvStack(pSlot.getStack()))) {
+                sourceSlot = pSlot;
+                break;
+            }
+        }
+        if (sourceSlot == null) return false;
+
+        // Pick up source item with left click
+        mc.playerController.windowClick(container.windowId, sourceSlot.slotNumber, 0, ClickType.PICKUP, player);
+        if (player.inventory.getItemStack().isEmpty()) return false;
+
+        if (maxCraft) {
+            // Left click to deposit entire cursor stack into furnace input slot
+            mc.playerController.windowClick(container.windowId, furnaceInputSlot.slotNumber, 0, ClickType.PICKUP, player);
+        } else {
+            // Right click to deposit 1 item into furnace input slot
+            mc.playerController.windowClick(container.windowId, furnaceInputSlot.slotNumber, 1, ClickType.PICKUP, player);
+        }
+
+        // Put remainder back in source slot
+        if (!player.inventory.getItemStack().isEmpty()) {
+            mc.playerController.windowClick(container.windowId, sourceSlot.slotNumber, 0, ClickType.PICKUP, player);
+        }
+
+        // If cursor still holds items, place in any empty slot
+        if (!player.inventory.getItemStack().isEmpty()) {
+            for (Slot pSlot : playerSlots) {
+                if (!pSlot.getHasStack()) {
+                    mc.playerController.windowClick(container.windowId, pSlot.slotNumber, 0, ClickType.PICKUP, player);
+                    break;
+                }
+            }
+        }
+        return true;
     }
 }

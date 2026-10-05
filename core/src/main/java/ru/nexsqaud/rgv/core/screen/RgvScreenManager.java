@@ -53,6 +53,7 @@ public class RgvScreenManager implements RgvRecipeScreen.RecipeLookupHandler {
         this.recipeManager = recipeManager != null ? recipeManager : new RgvRecipeManager();
         this.recipeScreen = new RgvRecipeScreen(this.recipeManager);
         this.recipeScreen.setLookupHandler(this);
+        this.recipeScreen.setConfig(this.config);
         this.searchBar = new SearchBarWidget(0, 0, 120, 16);
         this.searchBar.setOnTextChanged(text -> index.setSearchQuery(text));
     }

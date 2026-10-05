@@ -44,6 +44,24 @@ public interface RgvPlatform {
         return false;
     }
 
+    default boolean hasSuitableSlotsFor(RgvRecipe recipe) {
+        return false;
+    }
+
+    default TransferStatus getTransferStatus(RgvRecipe recipe) {
+        if (recipe == null) {
+            return TransferStatus.NO_SUITABLE_CONTAINER;
+        }
+        if (!hasSuitableSlotsFor(recipe)) {
+            return TransferStatus.NO_SUITABLE_CONTAINER;
+        }
+        RgvInventory inv = getPlayerInventory();
+        if (inv == null || !recipe.canCraft(inv)) {
+            return TransferStatus.MISSING_INGREDIENTS;
+        }
+        return TransferStatus.AVAILABLE;
+    }
+
     void sendGiveItemPacket(RgvStack stack, boolean fullStack);
 
     boolean isCheatModeAllowed();

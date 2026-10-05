@@ -9,6 +9,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
+import ru.nexsqaud.rgv.api.RgvStack;
 import ru.nexsqaud.rgv.core.screen.RgvScreenManager;
 import ru.nexsqaud.rgv.platform.forge1710.Forge1710Platform;
 import ru.nexsqaud.rgv.platform.forge1710.GL11RgvRenderer;
@@ -254,7 +255,10 @@ public class GuiOverlayHooks {
 
                 boolean isA = Keyboard.isKeyDown(Keyboard.KEY_A);
                 if (isA && !wasADown) {
-                    screenManager.handleAKey();
+                    ItemStack hovered = getHoveredItemStack(container);
+                    if (hovered != null && hovered.getItem() != null) {
+                        screenManager.getConfig().toggleBookmark(Forge1710Platform.toRgvStack(hovered));
+                    }
                 }
                 wasADown = isA;
 
@@ -285,25 +289,39 @@ public class GuiOverlayHooks {
             } else {
                 boolean isR = Keyboard.isKeyDown(Keyboard.KEY_R);
                 if (isR && !wasRDown) {
-                    screenManager.handleRKey();
+                    ItemStack hovered = getHoveredItemStack(container);
+                    if (hovered != null && hovered.getItem() != null) {
+                        screenManager.openRecipesFor(Forge1710Platform.toRgvStack(hovered));
+                    }
                 }
                 wasRDown = isR;
 
                 boolean isU = Keyboard.isKeyDown(Keyboard.KEY_U);
                 if (isU && !wasUDown) {
-                    screenManager.handleUKey();
+                    ItemStack hovered = getHoveredItemStack(container);
+                    if (hovered != null && hovered.getItem() != null) {
+                        screenManager.openUsesFor(Forge1710Platform.toRgvStack(hovered));
+                    }
                 }
                 wasUDown = isU;
 
                 boolean isA = Keyboard.isKeyDown(Keyboard.KEY_A);
                 if (isA && !wasADown) {
-                    screenManager.handleAKey();
+                    ItemStack hovered = getHoveredItemStack(container);
+                    if (hovered != null && hovered.getItem() != null) {
+                        screenManager.getConfig().toggleBookmark(Forge1710Platform.toRgvStack(hovered));
+                    }
                 }
                 wasADown = isA;
 
                 boolean isG = Keyboard.isKeyDown(Keyboard.KEY_G);
                 if (isG && !wasGDown) {
-                    screenManager.handleGKey();
+                    ItemStack hovered = getHoveredItemStack(container);
+                    if (hovered != null && hovered.getItem() != null) {
+                        screenManager.openGraphForStack(Forge1710Platform.toRgvStack(hovered));
+                    } else {
+                        screenManager.openGraph();
+                    }
                 }
                 wasGDown = isG;
 
@@ -429,6 +447,10 @@ public class GuiOverlayHooks {
         Slot s = getHoveredSlot(container);
         if (s != null && s.getHasStack()) {
             return s.getStack();
+        }
+        RgvStack hovered = screenManager.getHoveredStack();
+        if (hovered != null && !hovered.isEmpty()) {
+            return Forge1710Platform.toMinecraftStack(hovered);
         }
         return null;
     }
