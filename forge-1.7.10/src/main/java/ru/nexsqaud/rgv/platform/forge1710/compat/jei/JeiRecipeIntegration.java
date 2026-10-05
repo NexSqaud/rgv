@@ -154,14 +154,23 @@ public class JeiRecipeIntegration implements RgvPlugin {
 
                 @Override
                 public void addWidgets(RgvWidgetHolder holder) {
-                    int inX = 6;
-                    int inY = 6;
-                    for (int i = 0; i < Math.min(inputs.size(), 9); i++) {
-                        holder.addSlot(inputs.get(i), inX + (i % 3) * 18, inY + (i / 3) * 18);
-                    }
-                    holder.addArrow(66, 22, true);
-                    for (int i = 0; i < Math.min(outputs.size(), 3); i++) {
-                        holder.addOutputSlot(outputs.get(i), 96 + i * 26, 18);
+                    boolean isSmelting = category != null && (category.getId().contains("smelt") || category.getTitle().toLowerCase().contains("smelt"));
+                    if (isSmelting) {
+                        RgvIngredient inIng = !inputs.isEmpty() ? inputs.get(0) : RgvStack.empty();
+                        holder.addLargeSlot(inIng, 16, 8);
+                        holder.addFlame(22, 38, true, 10000);
+                        holder.addArrow(51, 13, true, 10000);
+                        holder.addOutputSlot(!outputs.isEmpty() ? outputs.get(0) : RgvStack.empty(), 84, 8);
+                    } else {
+                        int inX = 6;
+                        int inY = 6;
+                        for (int i = 0; i < Math.min(inputs.size(), 9); i++) {
+                            holder.addSlot(inputs.get(i), inX + (i % 3) * 18, inY + (i / 3) * 18);
+                        }
+                        holder.addArrow(66, 22, true);
+                        for (int i = 0; i < Math.min(outputs.size(), 3); i++) {
+                            holder.addOutputSlot(outputs.get(i), 96 + i * 26, 18);
+                        }
                     }
                 }
             };

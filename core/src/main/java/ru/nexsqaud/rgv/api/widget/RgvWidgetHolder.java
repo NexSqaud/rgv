@@ -47,8 +47,12 @@ public class RgvWidgetHolder {
         return addWidget(new SlotWidget(ingredient, x, y, true));
     }
 
+    public SlotWidget addLargeSlot(RgvIngredient ingredient, int x, int y) {
+        return addWidget(new SlotWidget(ingredient, x, y, true));
+    }
+
     public ArrowWidget addArrow(int x, int y, boolean animated) {
-        return addWidget(new ArrowWidget(x, y, animated, 2000));
+        return addWidget(new ArrowWidget(x, y, animated, 10000));
     }
 
     public ArrowWidget addArrow(int x, int y, boolean animated, int durationMs) {
@@ -56,7 +60,11 @@ public class RgvWidgetHolder {
     }
 
     public FlameWidget addFlame(int x, int y, boolean animated) {
-        return addWidget(new FlameWidget(x, y, animated, 1600));
+        return addWidget(new FlameWidget(x, y, animated, 10000));
+    }
+
+    public FlameWidget addFlame(int x, int y, boolean animated, int durationMs) {
+        return addWidget(new FlameWidget(x, y, animated, durationMs));
     }
 
     public TextWidget addText(String text, int x, int y, int color, boolean shadow) {
