@@ -57,6 +57,10 @@ public class RgvRecipeScreen {
     private int width = 176;
     private int height = 140;
 
+    // Recipe pagination button hitboxes
+    private int prevBtnX, prevBtnY, prevBtnW, prevBtnH;
+    private int nextBtnX, nextBtnY, nextBtnW, nextBtnH;
+
     private final List<RgvWidget> activeWidgets = new ArrayList<>();
     private RgvWidget hoveredWidget = null;
     private RgvStack hoveredLeafStack = null;
@@ -275,7 +279,14 @@ public class RgvRecipeScreen {
             this.height = 160;
             this.x = (screenW - width) / 2;
             this.y = (screenH - height) / 2;
+            prevBtnW = 0;
+            nextBtnW = 0;
             return;
+        }
+
+        if (currentRecipes.size() <= 1) {
+            prevBtnW = 0;
+            nextBtnW = 0;
         }
 
         RgvRecipe recipe = currentRecipes.get(currentRecipeIndex);
@@ -391,18 +402,44 @@ public class RgvRecipeScreen {
             }
             context.drawText(title, x + 8, y + 26, 0x222222, false);
 
-            String pageText = (currentRecipeIndex + 1) + " / " + currentRecipes.size();
-            int pageX = x + width - context.getTextWidth(pageText) - 30;
-            context.drawText(pageText, pageX, y + 26, 0x444444, false);
+            if (currentRecipes.size() > 1) {
+                String pageText = (currentRecipeIndex + 1) + " / " + currentRecipes.size();
+                int textW = context.getTextWidth(pageText);
 
-            int prevX = pageX - 14;
-            int nextX = x + width - 20;
-            boolean prevHover = mouseX >= prevX && mouseX < prevX + 10 && mouseY >= y + 24 && mouseY < y + 36;
-            boolean nextHover = mouseX >= nextX && mouseX < nextX + 10 && mouseY >= y + 24 && mouseY < y + 36;
+                int nextX = x + width - 16;
+                int textX = nextX - textW - 6;
+                int prevX = textX - 12;
 
-            context.drawText("<", prevX, y + 25, prevHover ? 0xFFFFFF : 0x333333, true);
-            context.drawText(">", nextX, y + 25, nextHover ? 0xFFFFFF : 0x333333, true);
+                prevBtnX = prevX - 3;
+                prevBtnY = y + 21;
+                prevBtnW = 14;
+                prevBtnH = 14;
+
+                nextBtnX = nextX - 3;
+                nextBtnY = y + 21;
+                nextBtnW = 14;
+                nextBtnH = 14;
+
+                boolean prevHover = mouseX >= prevBtnX && mouseX < prevBtnX + prevBtnW && mouseY >= prevBtnY && mouseY < prevBtnY + prevBtnH;
+                boolean nextHover = mouseX >= nextBtnX && mouseX < nextBtnX + nextBtnW && mouseY >= nextBtnY && mouseY < nextBtnY + nextBtnH;
+
+                if (prevHover) {
+                    context.drawRect(prevBtnX, prevBtnY, prevBtnW, prevBtnH, 0x30000000);
+                }
+                if (nextHover) {
+                    context.drawRect(nextBtnX, nextBtnY, nextBtnW, nextBtnH, 0x30000000);
+                }
+
+                context.drawText(pageText, textX, y + 26, 0x444444, false);
+                context.drawText("<", prevX, y + 25, prevHover ? 0xFFFFFF : 0x333333, true);
+                context.drawText(">", nextX, y + 25, nextHover ? 0xFFFFFF : 0x333333, true);
+            } else {
+                prevBtnW = 0;
+                nextBtnW = 0;
+            }
         } else {
+            prevBtnW = 0;
+            nextBtnW = 0;
             context.drawText("No crafting recipes found.", x + 12, y + 40, 0x222222, false);
             context.drawText("Obtain via world gathering or mob drops.", x + 12, y + 52, 0x444444, false);
         }
@@ -832,6 +869,23 @@ public class RgvRecipeScreen {
                 }
             }
 
+            if (currentRecipes.size() > 1) {
+                if (mouseX >= prevBtnX && mouseX < prevBtnX + prevBtnW && mouseY >= prevBtnY && mouseY < prevBtnY + prevBtnH) {
+                    List<String> tip = new ArrayList<>();
+                    tip.add("\u00a7fPrevious Recipe");
+                    tip.add("\u00a77Show previous recipe variant");
+                    context.drawTooltip(tip, mouseX, mouseY);
+                    return;
+                }
+                if (mouseX >= nextBtnX && mouseX < nextBtnX + nextBtnW && mouseY >= nextBtnY && mouseY < nextBtnY + nextBtnH) {
+                    List<String> tip = new ArrayList<>();
+                    tip.add("\u00a7fNext Recipe");
+                    tip.add("\u00a77Show next recipe variant");
+                    context.drawTooltip(tip, mouseX, mouseY);
+                    return;
+                }
+            }
+
             int btnY = y + height - 22;
 
             if (isSelectingForGraph) {
@@ -981,18 +1035,14 @@ public class RgvRecipeScreen {
         }
 
         // Page buttons < and >
-        if (!currentRecipes.isEmpty()) {
-            int pageX = x + width - 30;
-            int prevX = pageX - 14;
-            int nextX = x + width - 20;
-
-            if (mouseX >= prevX && mouseX < prevX + 10 && mouseY >= y + 24 && mouseY < y + 36) {
+        if (currentRecipes.size() > 1) {
+            if (mouseX >= prevBtnX && mouseX < prevBtnX + prevBtnW && mouseY >= prevBtnY && mouseY < prevBtnY + prevBtnH) {
                 if (currentRecipeIndex > 0) currentRecipeIndex--;
                 else currentRecipeIndex = currentRecipes.size() - 1;
                 rebuildActiveLayout();
                 return true;
             }
-            if (mouseX >= nextX && mouseX < nextX + 10 && mouseY >= y + 24 && mouseY < y + 36) {
+            if (mouseX >= nextBtnX && mouseX < nextBtnX + nextBtnW && mouseY >= nextBtnY && mouseY < nextBtnY + nextBtnH) {
                 if (currentRecipeIndex < currentRecipes.size() - 1) currentRecipeIndex++;
                 else currentRecipeIndex = 0;
                 rebuildActiveLayout();
@@ -1242,6 +1292,19 @@ public class RgvRecipeScreen {
 
     public boolean mouseScrolled(int scrollDelta) {
         if (!open) return false;
+        if (viewMode == ViewMode.RECIPES && currentRecipes.size() > 1) {
+            if (scrollDelta > 0) {
+                if (currentRecipeIndex > 0) currentRecipeIndex--;
+                else currentRecipeIndex = currentRecipes.size() - 1;
+                rebuildActiveLayout();
+                return true;
+            } else if (scrollDelta < 0) {
+                if (currentRecipeIndex < currentRecipes.size() - 1) currentRecipeIndex++;
+                else currentRecipeIndex = 0;
+                rebuildActiveLayout();
+                return true;
+            }
+        }
         if (viewMode == ViewMode.GRAPH) {
             if (scrollDelta != 0) {
                 panY += (scrollDelta > 0 ? 20 : -20);
@@ -1343,4 +1406,22 @@ public class RgvRecipeScreen {
 
         return false;
     }
+
+    public int getCurrentRecipeIndex() {
+        return currentRecipeIndex;
+    }
+
+    public List<RgvRecipe> getCurrentRecipes() {
+        return Collections.unmodifiableList(currentRecipes);
+    }
+
+    public int getPrevBtnX() { return prevBtnX; }
+    public int getPrevBtnY() { return prevBtnY; }
+    public int getPrevBtnW() { return prevBtnW; }
+    public int getPrevBtnH() { return prevBtnH; }
+
+    public int getNextBtnX() { return nextBtnX; }
+    public int getNextBtnY() { return nextBtnY; }
+    public int getNextBtnW() { return nextBtnW; }
+    public int getNextBtnH() { return nextBtnH; }
 }
