@@ -12,8 +12,9 @@ gradle-app.setting
 # Minecraft Runtime & Run Directories
 run/
 **/run/
-config/
-**/config/
+/config/
+forge-1.7.10/config/
+forge-1.12.2/config/
 crash-reports/
 **/crash-reports/
 logs/
@@ -88,3 +89,6 @@ addon.local.gradle.kts
 addon.late.local.gradle
 addon.late.local.gradle.kts
 layout.json
+
+# Never ignore any source code or resources
+!**/src/**
