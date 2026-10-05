@@ -13,6 +13,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import ru.nexsqaud.rgv.api.RgvIngredient;
 import ru.nexsqaud.rgv.api.RgvRecipe;
+import ru.nexsqaud.rgv.core.platform.TransferHelper;
 import ru.nexsqaud.rgv.platform.forge1122.Forge1122Platform;
 
 import java.util.*;
@@ -168,18 +169,8 @@ public class ClientTransferHelper1122 {
         return true;
     }
 
-    private static boolean canFitIn2x2(RgvRecipe recipe) {
-        if (recipe == null) return false;
-        List<RgvIngredient> inputs = recipe.getInputs();
-        if (inputs.size() <= 4) return true;
-        int[] outOfBounds = {2, 5, 6, 7, 8};
-        for (int idx : outOfBounds) {
-            if (idx < inputs.size()) {
-                RgvIngredient ing = inputs.get(idx);
-                if (ing != null && !ing.isEmpty()) return false;
-            }
-        }
-        return true;
+    public static boolean canFitIn2x2(RgvRecipe recipe) {
+        return TransferHelper.canFitIn2x2(recipe);
     }
 
     private static int calculateMaxCraft(RgvRecipe recipe, List<Slot> playerSlots, int[] slotMapping) {
@@ -225,17 +216,11 @@ public class ClientTransferHelper1122 {
     }
 
     public static boolean isSmeltingRecipe(RgvRecipe recipe) {
-        if (recipe == null || recipe.getCategory() == null) return false;
-        String id = recipe.getCategory().getId().toLowerCase();
-        String title = recipe.getCategory().getTitle().toLowerCase();
-        return id.contains("smelt") || id.contains("furnace") || title.contains("smelt");
+        return TransferHelper.isSmeltingRecipe(recipe);
     }
 
     public static boolean isCraftingRecipe(RgvRecipe recipe) {
-        if (recipe == null || recipe.getCategory() == null) return false;
-        String id = recipe.getCategory().getId().toLowerCase();
-        String title = recipe.getCategory().getTitle().toLowerCase();
-        return id.contains("craft") || title.contains("craft");
+        return TransferHelper.isCraftingRecipe(recipe);
     }
 
     public static boolean hasSuitableSlotsFor(RgvRecipe recipe) {
