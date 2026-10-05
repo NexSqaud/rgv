@@ -1,0 +1,90 @@
+# Gradle
+.gradle/
+**/.gradle/
+build/
+**/build/
+gradle-app.setting
+!gradlew
+!gradlew.bat
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# Minecraft Runtime & Run Directories
+run/
+**/run/
+config/
+**/config/
+crash-reports/
+**/crash-reports/
+logs/
+**/logs/
+saves/
+**/saves/
+asm/
+**/asm/
+usernamecache.json
+**/usernamecache.json
+usercache.json
+**/usercache.json
+banned-ips.json
+**/banned-ips.json
+banned-players.json
+**/banned-players.json
+eula.txt
+**/eula.txt
+ops.json
+**/ops.json
+server.properties
+**/server.properties
+servers.dat
+**/servers.dat
+whitelist.json
+**/whitelist.json
+options.txt
+**/options.txt
+
+# IDE - IntelliJ IDEA
+.idea/
+**/.idea/
+*.iml
+**/*.iml
+*.ipr
+**/*.ipr
+*.iws
+**/*.iws
+out/
+**/out/
+
+# IDE - Eclipse
+.settings/
+**/.settings/
+.classpath
+**/.classpath
+.project
+**/.project
+.factorypath
+**/.factorypath
+eclipse/
+**/eclipse/
+bin/
+**/bin/
+
+# IDE - Visual Studio Code
+.vscode/
+**/.vscode/
+
+# Build & System Logs
+*.log
+**/*.log
+hs_err_pid*.log
+
+# OS Generated
+.DS_Store
+Thumbs.db
+
+# GTNH / Custom Addons
+addon.local.gradle
+addon.local.gradle.kts
+addon.late.local.gradle
+addon.late.local.gradle.kts
+layout.json

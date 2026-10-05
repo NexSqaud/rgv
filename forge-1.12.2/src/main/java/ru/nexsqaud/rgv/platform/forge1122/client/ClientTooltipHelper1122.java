@@ -1,0 +1,124 @@
+package ru.nexsqaud.rgv.platform.forge1122.client;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.util.ITooltipFlag;
+import net.minecraft.item.ItemStack;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
+import ru.nexsqaud.rgv.api.RgvInventory;
+import ru.nexsqaud.rgv.platform.forge1122.Forge1122Inventory;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@SideOnly(Side.CLIENT)
+public class ClientTooltipHelper1122 {
+
+    public static List<String> getTooltip(ItemStack stack, String fallback) {
+        List<String> tooltip = new ArrayList<>();
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc != null && mc.player != null) {
+                ITooltipFlag flag = (mc.gameSettings != null && mc.gameSettings.advancedItemTooltips)
+                        ? ITooltipFlag.TooltipFlags.ADVANCED
+                        : ITooltipFlag.TooltipFlags.NORMAL;
+                List<String> mcTooltip = stack.getTooltip(mc.player, flag);
+                if (mcTooltip != null) {
+                    tooltip.addAll(mcTooltip);
+                    return tooltip;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        tooltip.add(fallback);
+        return tooltip;
+    }
+
+    public static boolean isInventoryKey(int keyCode) {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            return mc != null && mc.gameSettings != null && mc.gameSettings.keyBindInventory.getKeyCode() == keyCode;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    public static RgvInventory getPlayerInventory() {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc != null && mc.player != null) {
+                return new Forge1122Inventory(mc.player.inventory);
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    public static boolean isCheatModeAllowed() {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            return mc != null && mc.player != null && mc.player.capabilities.isCreativeMode;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    public static void giveCreativeItem(ItemStack stack, boolean fullStack) {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc != null && mc.player != null && mc.player.capabilities.isCreativeMode && mc.playerController != null) {
+                int count = fullStack ? 64 : 1;
+                ItemStack copy = stack.copy();
+                copy.setCount(Math.min(count, copy.getMaxStackSize()));
+                int targetSlot = 36 + mc.player.inventory.currentItem;
+                mc.playerController.sendSlotPacket(copy, targetSlot);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    public static int getScreenWidth() {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc != null && mc.displayWidth > 0 && mc.displayHeight > 0) {
+                ScaledResolution res = new ScaledResolution(mc);
+                return res.getScaledWidth();
+            }
+        } catch (Throwable ignored) {
+        }
+        return 0;
+    }
+
+    public static int getScreenHeight() {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc != null && mc.displayWidth > 0 && mc.displayHeight > 0) {
+                ScaledResolution res = new ScaledResolution(mc);
+                return res.getScaledHeight();
+            }
+        } catch (Throwable ignored) {
+        }
+        return 0;
+    }
+
+    public static int getGuiScale() {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc != null && mc.displayWidth > 0 && mc.displayHeight > 0) {
+                ScaledResolution res = new ScaledResolution(mc);
+                return res.getScaleFactor();
+            }
+        } catch (Throwable ignored) {
+        }
+        return 1;
+    }
+
+    public static String translate(String key, Object... args) {
+        try {
+            return net.minecraft.client.resources.I18n.format(key, args);
+        } catch (Throwable t) {
+            return key;
+        }
+    }
+}

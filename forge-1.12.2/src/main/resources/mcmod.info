@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "rgv",
+    "name": "Recipe Graph Viewer",
+    "description": "Interactive Recipe Graph Viewer, Craft Planner & EMI-style Recipe Index for Minecraft 1.12.2",
+    "version": "1.0.0",
+    "mcversion": "1.12.2",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["NexSqaud"],
+    "credits": "",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
+]
