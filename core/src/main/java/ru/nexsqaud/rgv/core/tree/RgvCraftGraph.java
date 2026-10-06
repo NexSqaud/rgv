@@ -63,7 +63,9 @@ public class RgvCraftGraph {
     public void closeTab(int index) {
         if (index >= 0 && index < tabs.size()) {
             tabs.remove(index);
-            if (activeTabIndex >= tabs.size()) {
+            if (activeTabIndex > index) {
+                activeTabIndex--;
+            } else if (activeTabIndex >= tabs.size()) {
                 activeTabIndex = Math.max(0, tabs.size() - 1);
             }
             save();
