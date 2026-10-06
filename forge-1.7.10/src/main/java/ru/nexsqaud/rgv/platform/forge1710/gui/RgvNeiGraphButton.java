@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
+import ru.nexsqaud.rgv.api.RgvStack;
 import ru.nexsqaud.rgv.core.screen.RgvScreenManager;
 import ru.nexsqaud.rgv.platform.forge1710.compat.nei.NeiRecipeHelper;
 
@@ -125,15 +126,21 @@ public class RgvNeiGraphButton extends RgvGuiButton {
             int perPage = NeiRecipeHelper.invokeInt(handler, "recipiesPerPage", 1);
             int numRecipes = NeiRecipeHelper.invokeInt(handler, "numRecipes", 0);
             int recipeIndex = Math.min(numRecipes - 1, Math.max(0, page * perPage + targetRow));
-            NeiRecipeHelper.addNeiRecipeIndexToGraph(handler, recipeIndex, screenManager);
+            NeiRecipeHelper.addNeiRecipeIndexToGraph(guiRecipe, handler, recipeIndex, screenManager);
         }
     }
 
     @Override
     public List<String> getTooltip() {
         List<String> tip = new ArrayList<>();
-        tip.add("\u00a7bAdd to Craft Graph");
-        tip.add("\u00a77Send this recipe to the RGV Graph Planner");
+        if (screenManager != null && screenManager.getCraftGraph().hasPendingTarget()) {
+            RgvStack target = screenManager.getCraftGraph().getPendingTargetStack();
+            tip.add("\u00a7bSet Recipe in Graph");
+            tip.add("\u00a77Apply this recipe for " + (target != null ? target.getDisplayName() : "node"));
+        } else {
+            tip.add("\u00a7bAdd to Craft Graph");
+            tip.add("\u00a77Send this recipe to the RGV Graph Planner");
+        }
         return tip;
     }
 }

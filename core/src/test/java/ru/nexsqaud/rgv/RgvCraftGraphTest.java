@@ -367,4 +367,75 @@ public class RgvCraftGraphTest {
         RgvCraftGraphTab loadedTab2 = loadedGraph.getTabs().get(1);
         assertEquals("Custom Plan 2", loadedTab2.getTitle());
     }
+
+    @Test
+    void testPendingTargetApplicationForRootAndSubNode() {
+        RgvRecipeManager manager = new RgvRecipeManager();
+        RgvRecipeCategory cat = new RgvRecipeCategory("crafting", "Crafting", RgvStack.empty());
+        manager.addCategory(cat);
+
+        RgvStack ironOre = RgvStack.of("minecraft:iron_ore", 0, 1, "Iron Ore");
+        RgvStack ironIngot = RgvStack.of("minecraft:iron_ingot", 0, 1, "Iron Ingot");
+        RgvStack ironSword = RgvStack.of("minecraft:iron_sword", 0, 1, "Iron Sword");
+        RgvStack stick = RgvStack.of("minecraft:stick", 0, 1, "Stick");
+
+        SimpleRecipe smeltRecipe = new SimpleRecipe("smelt_iron", cat, Collections.singletonList(ironOre), ironIngot);
+        SimpleRecipe swordRecipe = new SimpleRecipe("sword_recipe", cat, Arrays.asList(ironIngot.copyWithAmount(2), stick), ironSword);
+        manager.addRecipe(smeltRecipe);
+        manager.addRecipe(swordRecipe);
+
+        RgvCraftGraph graph = new RgvCraftGraph();
+        RgvCraftGraphTab tab = graph.createNewEmptyTab();
+        assertTrue(tab.isSelectingItem());
+
+        // 1. Select item for empty tab and set pending target
+        tab.setTargetStack(ironSword);
+        tab.setSelectingItem(false);
+        tab.setSelectingRecipe(true);
+        graph.setPendingTarget(tab, null, ironSword);
+
+        assertTrue(graph.hasPendingTarget());
+        assertEquals(ironSword, graph.getPendingTargetStack());
+
+        // 2. Apply recipe from external viewer (NEI/JEI) to pending target
+        boolean applied = graph.applyPendingTarget(swordRecipe, manager);
+        assertTrue(applied);
+        assertFalse(graph.hasPendingTarget(), "Pending target must be cleared after application");
+        assertFalse(tab.isSelectingRecipe());
+        assertNotNull(tab.getRootNode());
+        assertEquals(swordRecipe.getId(), tab.getRootRecipe().getId());
+
+        // 3. Set pending target on a child ingredient node (iron ingot)
+        RgvGraphNode ironIngotNode = null;
+        for (RgvGraphNode child : tab.getRootNode().getChildren()) {
+            if (child.getStack().matches(ironIngot)) {
+                ironIngotNode = child;
+                break;
+            }
+        }
+        assertNotNull(ironIngotNode, "Iron ingot child node must exist");
+        assertEquals(1, ironIngotNode.getLevel());
+
+        graph.setPendingTarget(tab, ironIngotNode, ironIngotNode.getStack());
+        assertTrue(graph.hasPendingTarget());
+
+        // 4. Apply smelting recipe to child node
+        boolean appliedSub = graph.applyPendingTarget(smeltRecipe, manager);
+        assertTrue(appliedSub);
+        assertFalse(graph.hasPendingTarget());
+        assertTrue(tab.hasRecipeForIngredient(ironIngot));
+        assertEquals(smeltRecipe.getId(), tab.getAssignedRecipe(ironIngot).getId());
+
+        // Verify the child node now has iron ore as a child
+        RgvGraphNode updatedIngotNode = null;
+        for (RgvGraphNode child : tab.getRootNode().getChildren()) {
+            if (child.getStack().matches(ironIngot)) {
+                updatedIngotNode = child;
+                break;
+            }
+        }
+        assertNotNull(updatedIngotNode);
+        assertFalse(updatedIngotNode.getChildren().isEmpty(), "Iron ingot should now expand with smelting input");
+        assertTrue(updatedIngotNode.getChildren().get(0).getStack().matches(ironOre));
+    }
 }

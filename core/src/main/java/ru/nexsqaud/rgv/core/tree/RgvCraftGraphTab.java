@@ -70,6 +70,13 @@ public class RgvCraftGraphTab {
         return targetStack;
     }
 
+    public void setTargetStack(RgvStack targetStack) {
+        this.targetStack = targetStack;
+        if (targetStack != null && !targetStack.isEmpty()) {
+            this.title = targetStack.getDisplayName();
+        }
+    }
+
     public RgvRecipe getRootRecipe() {
         return rootRecipe;
     }

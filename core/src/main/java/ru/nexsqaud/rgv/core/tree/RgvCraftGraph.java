@@ -82,14 +82,27 @@ public class RgvCraftGraph {
 
     private RgvCraftGraphTab pendingTargetTab = null;
     private RgvStack pendingTargetStack = null;
+    private boolean pendingTargetIsRoot = false;
+    private long pendingTargetTimestamp = 0;
 
     public void setPendingTarget(RgvCraftGraphTab tab, RgvGraphNode node) {
+        setPendingTarget(tab, node, node != null ? node.getStack() : (tab != null ? tab.getTargetStack() : null));
+    }
+
+    public void setPendingTarget(RgvCraftGraphTab tab, RgvGraphNode node, RgvStack stack) {
         this.pendingTargetTab = tab;
-        this.pendingTargetStack = node != null ? node.getStack() : (tab != null ? tab.getTargetStack() : null);
+        this.pendingTargetStack = stack;
+        this.pendingTargetIsRoot = (node == null || node.getLevel() == 0);
+        this.pendingTargetTimestamp = System.currentTimeMillis();
     }
 
     public boolean hasPendingTarget() {
-        return pendingTargetTab != null && pendingTargetStack != null;
+        if (pendingTargetTab == null || pendingTargetStack == null) return false;
+        if (System.currentTimeMillis() - pendingTargetTimestamp > 120_000) {
+            clearPendingTarget();
+            return false;
+        }
+        return true;
     }
 
     public RgvStack getPendingTargetStack() {
@@ -102,7 +115,7 @@ public class RgvCraftGraph {
 
     public boolean applyPendingTarget(RgvRecipe recipe, RgvRecipeManager manager) {
         if (!hasPendingTarget() || recipe == null) return false;
-        if (pendingTargetTab.getTargetStack() != null && pendingTargetTab.getTargetStack().equals(pendingTargetStack) && pendingTargetTab.isSelectingRecipe()) {
+        if (pendingTargetIsRoot || (pendingTargetTab.isSelectingRecipe() && pendingTargetTab.getTargetStack() != null && pendingTargetTab.getTargetStack().matches(pendingTargetStack))) {
             pendingTargetTab.assignRecipe(recipe, pendingTargetStack, manager);
         } else {
             pendingTargetTab.setRecipeForIngredient(pendingTargetStack, recipe, manager);
@@ -115,6 +128,8 @@ public class RgvCraftGraph {
     public void clearPendingTarget() {
         this.pendingTargetTab = null;
         this.pendingTargetStack = null;
+        this.pendingTargetIsRoot = false;
+        this.pendingTargetTimestamp = 0;
     }
 
     public void save() {

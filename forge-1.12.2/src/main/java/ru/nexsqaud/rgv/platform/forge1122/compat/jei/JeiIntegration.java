@@ -35,6 +35,11 @@ public class JeiIntegration {
         try {
             IFocus.Mode mode = isUsage ? IFocus.Mode.INPUT : IFocus.Mode.OUTPUT;
             IFocus<ItemStack> focus = jeiRuntime.getRecipeRegistry().createFocus(mode, stack);
+            if (focus == null) return false;
+            java.util.List<?> categories = jeiRuntime.getRecipeRegistry().getRecipeCategories(focus);
+            if (categories == null || categories.isEmpty()) {
+                return false;
+            }
             jeiRuntime.getRecipesGui().show(focus);
             return true;
         } catch (Throwable t) {

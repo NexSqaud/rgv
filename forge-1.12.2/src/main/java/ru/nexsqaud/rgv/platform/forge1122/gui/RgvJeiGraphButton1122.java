@@ -79,8 +79,14 @@ public class RgvJeiGraphButton1122 {
 
         if (hoveredLayout != null) {
             List<String> tip = new ArrayList<>();
-            tip.add("\u00a7bAdd to Craft Graph");
-            tip.add("\u00a77Send this recipe to the RGV Graph Planner");
+            if (screenManager != null && screenManager.getCraftGraph().hasPendingTarget()) {
+                RgvStack target = screenManager.getCraftGraph().getPendingTargetStack();
+                tip.add("\u00a7bSet Recipe in Graph");
+                tip.add("\u00a77Apply this recipe for " + (target != null ? target.getDisplayName() : "node"));
+            } else {
+                tip.add("\u00a7bAdd to Craft Graph");
+                tip.add("\u00a77Send this recipe to the RGV Graph Planner");
+            }
             GuiUtils.drawHoveringText(tip, mouseX, mouseY, screen.width, screen.height, -1, Minecraft.getMinecraft().fontRenderer);
         }
     }
@@ -103,9 +109,24 @@ public class RgvJeiGraphButton1122 {
             if (mouseX >= bx && mouseY >= by && mouseX < bx + bw && mouseY < by + bh) {
                 RgvRecipe recipe = extractJeiRecipe(layout);
                 if (recipe != null) {
-                    RgvInventory inv = ru.nexsqaud.rgv.core.platform.RgvPlatform.get() != null
-                            ? ru.nexsqaud.rgv.core.platform.RgvPlatform.get().getPlayerInventory() : null;
-                    screenManager.getCraftGraph().addTabForRecipe(recipe, 1, RgvMod1122.getRecipeManager(), inv);
+                    RgvMod1122.getRecipeManager().addRecipe(recipe);
+                    if (screenManager.getCraftGraph().hasPendingTarget()) {
+                        screenManager.getCraftGraph().applyPendingTarget(recipe, RgvMod1122.getRecipeManager());
+                    } else {
+                        RgvInventory inv = ru.nexsqaud.rgv.core.platform.RgvPlatform.get() != null
+                                ? ru.nexsqaud.rgv.core.platform.RgvPlatform.get().getPlayerInventory() : null;
+                        screenManager.getCraftGraph().addTabForRecipe(recipe, 1, RgvMod1122.getRecipeManager(), inv);
+                    }
+
+                    GuiScreen parent = null;
+                    try {
+                        Method mParent = screen.getClass().getMethod("getParentScreen");
+                        parent = (GuiScreen) mParent.invoke(screen);
+                    } catch (Throwable ignored) {}
+
+                    if (parent != null) {
+                        Minecraft.getMinecraft().displayGuiScreen(parent);
+                    }
                     screenManager.openGraph();
                     Minecraft.getMinecraft().getSoundHandler().playSound(
                             net.minecraft.client.audio.PositionedSoundRecord.getMasterRecord(
