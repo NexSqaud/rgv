@@ -95,6 +95,14 @@ public class RgvRecipeManager implements RgvRegistry {
         return Collections.unmodifiableList(allRecipes);
     }
 
+    public RgvRecipe getRecipeById(String id) {
+        if (id == null) return null;
+        for (RgvRecipe r : allRecipes) {
+            if (id.equals(r.getId())) return r;
+        }
+        return null;
+    }
+
     public List<RgvRecipe> getRecipesByCategory(RgvRecipeCategory category) {
         if (category == null) return Collections.emptyList();
         List<RgvRecipe> list = recipesByCategory.get(category.getId());

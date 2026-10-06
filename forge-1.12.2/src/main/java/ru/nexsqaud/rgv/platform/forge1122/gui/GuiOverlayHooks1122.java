@@ -1,20 +1,22 @@
 package ru.nexsqaud.rgv.platform.forge1122.gui;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.event.GuiScreenEvent;
+import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import ru.nexsqaud.rgv.api.RgvStack;
-import ru.nexsqaud.rgv.core.screen.RgvRecipeScreen;
 import ru.nexsqaud.rgv.core.screen.RgvScreenManager;
 import ru.nexsqaud.rgv.platform.forge1122.Forge1122Platform;
 import ru.nexsqaud.rgv.platform.forge1122.render.GL11RgvRenderer1122;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 /**
  * Event subscriber hooking into Forge 1.12.2 GUI rendering and user input.
@@ -25,7 +27,6 @@ public class GuiOverlayHooks1122 {
     private final GL11RgvRenderer1122 renderer;
 
     private RgvHostPlannerButton1122 hostBtn;
-    private RgvJeiGraphButton1122 jeiBtn;
 
     private boolean wasGDown = false;
     private boolean wasADown = false;
@@ -89,10 +90,7 @@ public class GuiOverlayHooks1122 {
         wasRDown = false;
         wasUDown = false;
 
-        int btnId = 64000;
         if (event.getGui().getClass().getName().contains("RecipesGui")) {
-            jeiBtn = new RgvJeiGraphButton1122(btnId++, event.getGui(), screenManager);
-            event.getButtonList().add(jeiBtn);
             hostBtn = null;
         } else if (event.getGui() instanceof GuiContainer) {
             GuiContainer container = (GuiContainer) event.getGui();
@@ -108,11 +106,11 @@ public class GuiOverlayHooks1122 {
             } catch (Exception ignored) {}
             screenManager.updateBounds(event.getGui().width, event.getGui().height, guiLeft, guiTop, xSize, ySize);
 
-            hostBtn = new RgvHostPlannerButton1122(btnId++, screenManager);
+            int btnId = 64000;
+            hostBtn = new RgvHostPlannerButton1122(btnId, screenManager);
             hostBtn.x = guiLeft - 22;
             hostBtn.y = guiTop + 4;
             event.getButtonList().add(hostBtn);
-            jeiBtn = null;
         }
     }
 
@@ -121,15 +119,31 @@ public class GuiOverlayHooks1122 {
         if (event.getButton() instanceof RgvHostPlannerButton1122) {
             ((RgvHostPlannerButton1122) event.getButton()).onClicked();
             event.setCanceled(true);
-        } else if (event.getButton() instanceof RgvJeiGraphButton1122) {
-            ((RgvJeiGraphButton1122) event.getButton()).onClicked();
-            event.setCanceled(true);
         }
     }
 
     @SubscribeEvent
     public void onDrawScreenPost(GuiScreenEvent.DrawScreenEvent.Post event) {
         if (event.getGui() instanceof RgvGuiScreen1122) return;
+
+        if (event.getGui().getClass().getName().contains("RecipesGui")) {
+            GuiScreen screen = event.getGui();
+            int guiLeft = RgvJeiGraphButton1122.getIntField(screen, "guiLeft", (screen.width - 176) / 2);
+            int guiTop = RgvJeiGraphButton1122.getIntField(screen, "guiTop", (screen.height - 166) / 2);
+            int xSize = RgvJeiGraphButton1122.getIntField(screen, "xSize", 176);
+            int ySize = RgvJeiGraphButton1122.getIntField(screen, "ySize", 166);
+            screenManager.updateBounds(screen.width, screen.height, guiLeft, guiTop, xSize, ySize);
+
+            if (screenManager.getRecipeScreen().isOpen()) {
+                screenManager.getRecipeScreen().render(renderer, event.getMouseX(), event.getMouseY(), event.getRenderPartialTicks());
+                screenManager.getRecipeScreen().renderTooltips(renderer, event.getMouseX(), event.getMouseY());
+                return;
+            }
+
+            RgvJeiGraphButton1122.render(screen, screenManager, event.getMouseX(), event.getMouseY(), event.getRenderPartialTicks());
+            return;
+        }
+
         if (!(event.getGui() instanceof GuiContainer)) return;
         GuiContainer container = (GuiContainer) event.getGui();
 
@@ -148,12 +162,19 @@ public class GuiOverlayHooks1122 {
 
         // Render panels (render includes tooltips)
         screenManager.render(renderer, event.getMouseX(), event.getMouseY(), event.getRenderPartialTicks());
+
+        Slot hoveredSlot = container.getSlotUnderMouse();
+        if (hoveredSlot == null || !hoveredSlot.getHasStack()) {
+            if (hostBtn != null && hostBtn.visible && hostBtn.isMouseOver()) {
+                GuiUtils.drawHoveringText(hostBtn.getTooltip(), event.getMouseX(), event.getMouseY(),
+                        container.width, container.height, -1, Minecraft.getMinecraft().fontRenderer);
+            }
+        }
     }
 
     @SubscribeEvent
     public void onMouseInput(GuiScreenEvent.MouseInputEvent.Pre event) {
         if (event.getGui() instanceof RgvGuiScreen1122) return;
-        if (!(event.getGui() instanceof GuiContainer)) return;
 
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.displayWidth <= 0 || mc.displayHeight <= 0) return;
@@ -164,6 +185,38 @@ public class GuiOverlayHooks1122 {
         int btn = Mouse.getEventButton();
         boolean btnState = Mouse.getEventButtonState();
         int dWheel = Mouse.getEventDWheel();
+
+        if (event.getGui().getClass().getName().contains("RecipesGui")) {
+            if (screenManager.getRecipeScreen().isOpen()) {
+                if (dWheel != 0) {
+                    if (screenManager.getRecipeScreen().mouseScrolled(dWheel)) {
+                        event.setCanceled(true);
+                        return;
+                    }
+                }
+                if (btn >= 0) {
+                    if (btnState) {
+                        if (screenManager.getRecipeScreen().mouseClicked(mouseX, mouseY, btn)) {
+                            event.setCanceled(true);
+                            return;
+                        }
+                    } else {
+                        screenManager.getRecipeScreen().mouseReleased(mouseX, mouseY, btn);
+                    }
+                }
+                return;
+            }
+
+            if (btn == 0 && btnState) {
+                if (RgvJeiGraphButton1122.mouseClicked(event.getGui(), screenManager, mouseX, mouseY, btn)) {
+                    event.setCanceled(true);
+                    return;
+                }
+            }
+            return;
+        }
+
+        if (!(event.getGui() instanceof GuiContainer)) return;
 
         if (dWheel != 0) {
             if (screenManager.mouseScrolled(dWheel)) {
@@ -186,11 +239,48 @@ public class GuiOverlayHooks1122 {
     @SubscribeEvent
     public void onKeyboardInput(GuiScreenEvent.KeyboardInputEvent.Pre event) {
         if (event.getGui() instanceof RgvGuiScreen1122) return;
-        if (!(event.getGui() instanceof GuiContainer)) return;
-        GuiContainer container = (GuiContainer) event.getGui();
 
         int key = Keyboard.getEventKey();
         boolean state = Keyboard.getEventKeyState();
+
+        if (event.getGui().getClass().getName().contains("RecipesGui")) {
+            if (screenManager.getRecipeScreen().isOpen()) {
+                if (state) {
+                    if (key == Keyboard.KEY_ESCAPE) {
+                        screenManager.getRecipeScreen().close();
+                        event.setCanceled(true);
+                        return;
+                    }
+                    if (screenManager.getRecipeScreen().keyPressed(key, Keyboard.getEventCharacter())) {
+                        event.setCanceled(true);
+                        return;
+                    }
+                }
+                return;
+            }
+
+            if (state) {
+                if (key == Keyboard.KEY_G && !wasGDown) {
+                    wasGDown = true;
+                    Object hoveredObj = getJeiIngredientUnderMouse(event.getGui());
+                    if (hoveredObj instanceof ItemStack && !((ItemStack) hoveredObj).isEmpty()) {
+                        screenManager.openGraphForStack(Forge1122Platform.toRgvStack((ItemStack) hoveredObj));
+                        event.setCanceled(true);
+                        return;
+                    } else {
+                        screenManager.openGraph();
+                        event.setCanceled(true);
+                        return;
+                    }
+                }
+            } else {
+                if (key == Keyboard.KEY_G) wasGDown = false;
+            }
+            return;
+        }
+
+        if (!(event.getGui() instanceof GuiContainer)) return;
+        GuiContainer container = (GuiContainer) event.getGui();
 
         if (state) {
             if (key == Keyboard.KEY_G && !wasGDown) {
@@ -240,6 +330,15 @@ public class GuiOverlayHooks1122 {
         boolean isCtrl = Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL);
         if (screenManager.keyPressed(key, Keyboard.getEventCharacter(), isCtrl)) {
             event.setCanceled(true);
+        }
+    }
+
+    private Object getJeiIngredientUnderMouse(GuiScreen screen) {
+        try {
+            Method m = screen.getClass().getMethod("getIngredientUnderMouse");
+            return m.invoke(screen);
+        } catch (Throwable ignored) {
+            return null;
         }
     }
 

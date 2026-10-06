@@ -444,6 +444,16 @@ public class NeiRecipeHelper {
         return null;
     }
 
+    public static java.awt.Point getRecipePosition(Object guiRecipe, int recipeIndex) {
+        if (guiRecipe == null) return null;
+        try {
+            Method m = guiRecipe.getClass().getMethod("getRecipePosition", int.class);
+            return (java.awt.Point) m.invoke(guiRecipe, recipeIndex);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     public static int getIntField(Object obj, String field1, String field2, int def) {
         try {
             Field f = obj.getClass().getField(field1);
