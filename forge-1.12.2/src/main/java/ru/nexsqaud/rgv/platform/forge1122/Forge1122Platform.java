@@ -300,10 +300,11 @@ public class Forge1122Platform implements RgvPlatform {
 
     @Override
     public boolean openExternalRecipeViewer(RgvIngredient ingredient, boolean isUsage) {
-        if (ingredient instanceof RgvStack) {
-            ItemStack stack = toMinecraftStack((RgvStack) ingredient);
-            if (!stack.isEmpty() && isJeiPresent()) {
-                return JeiIntegration.openRecipeGui(stack, isUsage);
+        if (FMLCommonHandler.instance().getSide().isClient() && ingredient instanceof RgvStack) {
+            RgvStack single = ((RgvStack) ingredient).copyWithAmount(1);
+            ItemStack stack = toMinecraftStack(single);
+            if (!stack.isEmpty()) {
+                return ClientTooltipHelper1122.openExternalRecipeViewer(stack, isUsage);
             }
         }
         return false;

@@ -121,4 +121,22 @@ public class ClientTooltipHelper1122 {
             return key;
         }
     }
+
+    public static boolean openExternalRecipeViewer(ItemStack stack, boolean isUsage) {
+        if (stack == null || stack.isEmpty()) return false;
+        if (!ru.nexsqaud.rgv.platform.forge1122.Forge1122Platform.isJeiPresent()) return false;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null) return false;
+        net.minecraft.client.gui.GuiScreen current = mc.currentScreen;
+        net.minecraft.client.gui.GuiScreen containerParent = null;
+        if (current instanceof ru.nexsqaud.rgv.platform.forge1122.gui.RgvGuiScreen1122) {
+            containerParent = ((ru.nexsqaud.rgv.platform.forge1122.gui.RgvGuiScreen1122) current).getParentScreen();
+            mc.currentScreen = containerParent;
+        }
+        boolean opened = ru.nexsqaud.rgv.platform.forge1122.compat.jei.JeiIntegration.openRecipeGui(stack, isUsage);
+        if (!opened && current instanceof ru.nexsqaud.rgv.platform.forge1122.gui.RgvGuiScreen1122) {
+            mc.currentScreen = current;
+        }
+        return opened;
+    }
 }

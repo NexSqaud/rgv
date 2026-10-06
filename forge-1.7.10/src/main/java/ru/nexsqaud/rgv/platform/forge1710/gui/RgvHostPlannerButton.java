@@ -29,8 +29,8 @@ public class RgvHostPlannerButton extends RgvGuiButton {
             return;
         }
 
-        // Only visible when NEI handles the right-side item index and RGV modal is closed
-        if (!screenManager.isNeiActive() || screenManager.getRecipeScreen().isOpen()) {
+        // Visible whenever the RGV Craft Graph modal is closed
+        if (screenManager.getRecipeScreen().isOpen()) {
             this.visible = false;
             return;
         }

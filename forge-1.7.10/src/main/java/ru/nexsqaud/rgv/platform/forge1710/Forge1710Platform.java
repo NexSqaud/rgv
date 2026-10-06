@@ -293,10 +293,11 @@ public class Forge1710Platform implements RgvPlatform {
 
     @Override
     public boolean openExternalRecipeViewer(RgvIngredient ingredient, boolean isUsage) {
-        if (ingredient instanceof RgvStack) {
-            ItemStack stack = toMinecraftStack((RgvStack) ingredient);
-            if (stack != null && isNeiPresent()) {
-                return ru.nexsqaud.rgv.platform.forge1710.compat.nei.NeiRecipeHelper.openRecipeGui(stack, isUsage);
+        if (FMLCommonHandler.instance().getSide().isClient() && ingredient instanceof RgvStack) {
+            RgvStack single = ((RgvStack) ingredient).copyWithAmount(1);
+            ItemStack stack = toMinecraftStack(single);
+            if (stack != null) {
+                return ClientTooltipHelper.openExternalRecipeViewer(stack, isUsage);
             }
         }
         return false;

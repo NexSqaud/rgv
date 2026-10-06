@@ -33,8 +33,10 @@ public class JeiIntegration {
     public static boolean openRecipeGui(ItemStack stack, boolean isUsage) {
         if (jeiRuntime == null || stack == null || stack.isEmpty()) return false;
         try {
+            ItemStack queryStack = stack.copy();
+            queryStack.setCount(1);
             IFocus.Mode mode = isUsage ? IFocus.Mode.INPUT : IFocus.Mode.OUTPUT;
-            IFocus<ItemStack> focus = jeiRuntime.getRecipeRegistry().createFocus(mode, stack);
+            IFocus<ItemStack> focus = jeiRuntime.getRecipeRegistry().createFocus(mode, queryStack);
             if (focus == null) return false;
             java.util.List<?> categories = jeiRuntime.getRecipeRegistry().getRecipeCategories(focus);
             if (categories == null || categories.isEmpty()) {

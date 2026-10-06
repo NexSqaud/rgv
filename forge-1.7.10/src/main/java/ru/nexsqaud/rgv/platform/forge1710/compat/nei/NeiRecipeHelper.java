@@ -177,10 +177,12 @@ public class NeiRecipeHelper {
     public static boolean openRecipeGui(ItemStack stack, boolean isUsage) {
         if (stack == null || stack.getItem() == null) return false;
         try {
+            ItemStack queryStack = stack.copy();
+            queryStack.stackSize = 1;
             String className = isUsage ? "codechicken.nei.recipe.GuiUsageRecipe" : "codechicken.nei.recipe.GuiCraftingRecipe";
             Class<?> clazz = Class.forName(className);
             Method m = clazz.getMethod("openRecipeGui", String.class, Object[].class);
-            Object result = m.invoke(null, "item", new Object[]{stack});
+            Object result = m.invoke(null, new Object[]{"item", new Object[]{queryStack}});
             return Boolean.TRUE.equals(result);
         } catch (Throwable t) {
             LOG.warn("Failed to open NEI recipe GUI: " + t.getMessage());
@@ -307,13 +309,25 @@ public class NeiRecipeHelper {
                     try {
                         Field fFirst = null;
                         try {
-                            fFirst = guiRecipe.getClass().getField("firstGui");
+                            fFirst = guiRecipe.getClass().getField("firstGuiGeneral");
                         } catch (NoSuchFieldException e) {
-                            fFirst = guiRecipe.getClass().getDeclaredField("firstGui");
+                            try {
+                                fFirst = guiRecipe.getClass().getDeclaredField("firstGuiGeneral");
+                            } catch (NoSuchFieldException ignored) {}
+                        }
+                        if (fFirst == null) {
+                            try {
+                                fFirst = guiRecipe.getClass().getField("firstGui");
+                            } catch (NoSuchFieldException e) {
+                                fFirst = guiRecipe.getClass().getDeclaredField("firstGui");
+                            }
                         }
                         if (fFirst != null) {
                             fFirst.setAccessible(true);
                             net.minecraft.client.gui.GuiScreen first = (net.minecraft.client.gui.GuiScreen) fFirst.get(guiRecipe);
+                            if (first instanceof ru.nexsqaud.rgv.platform.forge1710.gui.RgvGuiScreen) {
+                                first = ((ru.nexsqaud.rgv.platform.forge1710.gui.RgvGuiScreen) first).getParentScreen();
+                            }
                             if (first != null) {
                                 Minecraft.getMinecraft().displayGuiScreen(first);
                             }
