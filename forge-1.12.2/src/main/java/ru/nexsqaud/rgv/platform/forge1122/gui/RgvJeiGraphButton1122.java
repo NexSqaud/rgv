@@ -124,6 +124,10 @@ public class RgvJeiGraphButton1122 {
                         parent = (GuiScreen) mParent.invoke(screen);
                     } catch (Throwable ignored) {}
 
+                    if (parent instanceof RgvGuiScreen1122) {
+                        parent = ((RgvGuiScreen1122) parent).getParentScreen();
+                    }
+
                     if (parent != null) {
                         Minecraft.getMinecraft().displayGuiScreen(parent);
                     }

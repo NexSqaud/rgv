@@ -62,7 +62,7 @@ public class RgvGuiScreen1122 extends GuiScreen {
         if (recipeScreen.isOpen()) {
             recipeScreen.render(renderer, mouseX, mouseY, partialTicks);
             recipeScreen.renderTooltips(renderer, mouseX, mouseY);
-        } else {
+        } else if (this.mc.currentScreen == this) {
             this.mc.displayGuiScreen(parentScreen);
         }
     }
@@ -74,10 +74,10 @@ public class RgvGuiScreen1122 extends GuiScreen {
         }
         if (recipeScreen.isOpen()) {
             recipeScreen.mouseClicked(mouseX, mouseY, button);
-            if (!recipeScreen.isOpen()) {
+            if (!recipeScreen.isOpen() && this.mc.currentScreen == this) {
                 this.mc.displayGuiScreen(parentScreen);
             }
-        } else {
+        } else if (this.mc.currentScreen == this) {
             this.mc.displayGuiScreen(parentScreen);
         }
     }
@@ -107,13 +107,15 @@ public class RgvGuiScreen1122 extends GuiScreen {
                 return;
             }
             recipeScreen.close();
-            this.mc.displayGuiScreen(parentScreen);
+            if (this.mc.currentScreen == this) {
+                this.mc.displayGuiScreen(parentScreen);
+            }
             return;
         }
 
         if (recipeScreen.isOpen()) {
             recipeScreen.keyPressed(keyCode, typedChar);
-            if (!recipeScreen.isOpen()) {
+            if (!recipeScreen.isOpen() && this.mc.currentScreen == this) {
                 this.mc.displayGuiScreen(parentScreen);
             }
         }
