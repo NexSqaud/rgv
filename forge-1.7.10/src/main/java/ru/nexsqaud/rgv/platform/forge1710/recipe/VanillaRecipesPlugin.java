@@ -162,17 +162,20 @@ public class VanillaRecipesPlugin implements RgvPlugin {
     private RgvIngredient convertOreInput(Object input) {
         if (input == null) return RgvStack.empty();
         if (input instanceof ItemStack) {
-            return Forge1710Platform.toRgvStack((ItemStack) input).copyWithAmount(1);
+            List<RgvStack> expanded = Forge1710Platform.expandStack((ItemStack) input);
+            if (expanded.isEmpty()) return RgvStack.empty();
+            if (expanded.size() == 1) return expanded.get(0);
+            return RgvIngredientList.of(expanded, 1);
         }
         if (input instanceof ItemStack[]) {
             ItemStack[] array = (ItemStack[]) input;
             List<RgvStack> stacks = new ArrayList<>();
             for (ItemStack s : array) {
                 if (s != null && s.getItem() != null) {
-                    stacks.add(Forge1710Platform.toRgvStack(s).copyWithAmount(1));
+                    stacks.addAll(Forge1710Platform.expandStack(s));
                 }
             }
-            return RgvIngredientList.of(stacks, 1);
+            return stacks.isEmpty() ? RgvStack.empty() : RgvIngredientList.of(stacks, 1);
         }
         if (input instanceof List) {
             @SuppressWarnings("unchecked")
@@ -182,21 +185,21 @@ public class VanillaRecipesPlugin implements RgvPlugin {
                 if (item instanceof ItemStack) {
                     ItemStack s = (ItemStack) item;
                     if (s.getItem() != null) {
-                        stacks.add(Forge1710Platform.toRgvStack(s).copyWithAmount(1));
+                        stacks.addAll(Forge1710Platform.expandStack(s));
                     }
                 }
             }
-            return RgvIngredientList.of(stacks, 1);
+            return stacks.isEmpty() ? RgvStack.empty() : RgvIngredientList.of(stacks, 1);
         }
         if (input instanceof String) {
             ArrayList<ItemStack> ores = OreDictionary.getOres((String) input);
             List<RgvStack> stacks = new ArrayList<>();
             for (ItemStack s : ores) {
                 if (s != null && s.getItem() != null) {
-                    stacks.add(Forge1710Platform.toRgvStack(s).copyWithAmount(1));
+                    stacks.addAll(Forge1710Platform.expandStack(s));
                 }
             }
-            return RgvIngredientList.ofTag((String) input, stacks, 1);
+            return stacks.isEmpty() ? RgvStack.empty() : RgvIngredientList.ofTag((String) input, stacks, 1);
         }
         return RgvStack.empty();
     }

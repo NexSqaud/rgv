@@ -133,17 +133,15 @@ public class VanillaRecipesPlugin1122 implements RgvPlugin {
         ItemStack[] matching = ingredient.getMatchingStacks();
         if (matching == null || matching.length == 0) return RgvStack.empty();
 
-        if (matching.length == 1) {
-            return Forge1122Platform.toRgvStack(matching[0]).copyWithAmount(1);
-        }
-
         List<RgvStack> list = new ArrayList<>();
         for (ItemStack s : matching) {
             if (s != null && !s.isEmpty()) {
-                list.add(Forge1122Platform.toRgvStack(s).copyWithAmount(1));
+                list.addAll(Forge1122Platform.expandStack(s));
             }
         }
-        return list.isEmpty() ? RgvStack.empty() : RgvIngredientList.of(list, 1);
+        if (list.isEmpty()) return RgvStack.empty();
+        if (list.size() == 1) return list.get(0);
+        return RgvIngredientList.of(list, 1);
     }
 
     private void registerSmeltingRecipes(RgvRegistry registry) {

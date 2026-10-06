@@ -57,20 +57,88 @@ public class Forge1710Platform implements RgvPlatform {
             return RgvStack.empty();
         }
 
-        String id = Item.itemRegistry.getNameForObject(stack.getItem());
-        if (id == null) id = "unknown:" + stack.getItem().getUnlocalizedName();
+        String id;
+        try {
+            id = Item.itemRegistry.getNameForObject(stack.getItem());
+        } catch (Throwable t) {
+            id = null;
+        }
+        if (id == null) {
+            try {
+                id = "unknown:" + stack.getItem().getUnlocalizedName();
+            } catch (Throwable t) {
+                id = "unknown:item";
+            }
+        }
         int meta = stack.getItemDamage();
         long amount = stack.stackSize;
 
-        String displayName = stack.getDisplayName();
-        List<String> tooltip;
+        String displayName = null;
+        boolean isWildcard = (meta == OreDictionary.WILDCARD_VALUE || meta == Short.MAX_VALUE || meta < 0);
+        try {
+            if (isWildcard) {
+                ItemStack safe = stack.copy();
+                safe.setItemDamage(0);
+                displayName = safe.getDisplayName();
+            } else {
+                displayName = stack.getDisplayName();
+            }
+        } catch (Throwable t) {
+            try {
+                displayName = stack.getItem().getItemStackDisplayName(stack);
+            } catch (Throwable t2) {
+                try {
+                    displayName = stack.getItem().getUnlocalizedName();
+                } catch (Throwable t3) {
+                    displayName = id;
+                }
+            }
+        }
+        if (displayName == null || displayName.trim().isEmpty()) {
+            displayName = id;
+        }
+
+        List<String> tooltip = null;
         if (FMLCommonHandler.instance().getSide().isClient()) {
-            tooltip = ClientTooltipHelper.getTooltip(stack, displayName);
-        } else {
+            try {
+                ItemStack safeForTooltip = isWildcard ? stack.copy() : stack;
+                if (isWildcard) {
+                    safeForTooltip.setItemDamage(0);
+                }
+                tooltip = ClientTooltipHelper.getTooltip(safeForTooltip, displayName);
+            } catch (Throwable ignored) {
+            }
+        }
+        if (tooltip == null || tooltip.isEmpty()) {
             tooltip = Collections.singletonList(displayName);
         }
 
         return RgvStack.ofPayload(id, meta, amount, displayName, tooltip, stack.copy());
+    }
+
+    public static List<RgvStack> expandStack(ItemStack s) {
+        List<RgvStack> result = new ArrayList<>();
+        if (s == null || s.getItem() == null) return result;
+
+        int meta = s.getItemDamage();
+        if (meta == OreDictionary.WILDCARD_VALUE || meta == Short.MAX_VALUE) {
+            List<ItemStack> subItems = new ArrayList<>();
+            try {
+                s.getItem().getSubItems(s.getItem(), null, subItems);
+            } catch (Throwable ignored) {
+            }
+            if (!subItems.isEmpty()) {
+                for (ItemStack sub : subItems) {
+                    if (sub != null && sub.getItem() != null) {
+                        result.add(toRgvStack(sub).copyWithAmount(1));
+                    }
+                }
+                return result;
+            }
+        }
+
+        result.add(toRgvStack(s).copyWithAmount(1));
+        return result;
     }
 
     public static ItemStack toMinecraftStack(RgvStack rgv) {
@@ -79,13 +147,16 @@ public class Forge1710Platform implements RgvPlatform {
         if (unwrapped != null) {
             ItemStack copy = unwrapped.copy();
             copy.stackSize = (int) Math.max(1, Math.min(rgv.getAmount(), copy.getMaxStackSize()));
+            if (copy.getItemDamage() == OreDictionary.WILDCARD_VALUE || copy.getItemDamage() == Short.MAX_VALUE || copy.getItemDamage() < 0) {
+                copy.setItemDamage(0);
+            }
             return copy;
         }
 
         Item item = (Item) Item.itemRegistry.getObject(rgv.getId());
         if (item == null) return null;
 
-        int meta = rgv.getMeta() == 32767 ? 0 : rgv.getMeta();
+        int meta = (rgv.getMeta() == OreDictionary.WILDCARD_VALUE || rgv.getMeta() == Short.MAX_VALUE || rgv.getMeta() < 0) ? 0 : rgv.getMeta();
         int count = (int) Math.max(1, Math.min(rgv.getAmount(), item.getItemStackLimit()));
         return new ItemStack(item, count, meta);
     }
@@ -100,10 +171,12 @@ public class Forge1710Platform implements RgvPlatform {
             if (sa.getItem() != sb.getItem()) return false;
             int metaA = sa.getItemDamage();
             int metaB = sb.getItemDamage();
-            if (metaA != 32767 && metaB != 32767 && metaA != metaB) return false;
+            if (metaA != OreDictionary.WILDCARD_VALUE && metaA != Short.MAX_VALUE
+                    && metaB != OreDictionary.WILDCARD_VALUE && metaB != Short.MAX_VALUE
+                    && metaA != metaB) return false;
             return ItemStack.areItemStackTagsEqual(sa, sb);
         }
-        return a.matches(b);
+        return true;
     }
 
     @Override
@@ -180,7 +253,7 @@ public class Forge1710Platform implements RgvPlatform {
                 List<RgvStack> stacks = new ArrayList<>();
                 for (ItemStack s : ores) {
                     if (s != null && s.getItem() != null) {
-                        stacks.add(toRgvStack(s));
+                        stacks.addAll(expandStack(s));
                     }
                 }
                 if (!stacks.isEmpty()) {

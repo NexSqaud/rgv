@@ -481,4 +481,41 @@ public class RgvCraftGraphTest {
         assertFalse(updatedIngotNode.getChildren().isEmpty(), "Iron ingot should now expand with smelting input");
         assertTrue(updatedIngotNode.getChildren().get(0).getStack().matches(ironOre));
     }
+
+    @Test
+    public void testWildcardMetadataMatchingAndExpansion() {
+        RgvStack wildcardComb = RgvStack.of("forestry:honeycomb", 32767, 1, "Honeycomb");
+        RgvStack forestComb = RgvStack.of("forestry:honeycomb", 0, 1, "Forest Honeycomb");
+        RgvStack meadowComb = RgvStack.of("forestry:honeycomb", 1, 1, "Meadow Honeycomb");
+        RgvStack differentItem = RgvStack.of("minecraft:iron_ingot", 0, 1, "Iron Ingot");
+
+        // Wildcard matches any metadata of the same ID
+        assertTrue(wildcardComb.matches(forestComb));
+        assertTrue(forestComb.matches(wildcardComb));
+        assertTrue(wildcardComb.matches(meadowComb));
+        assertTrue(meadowComb.matches(wildcardComb));
+
+        // Different concrete metadatas do not match each other
+        assertFalse(forestComb.matches(meadowComb));
+        assertFalse(forestComb.matches(differentItem));
+
+        // Recipe requiring wildcard input should accept inventory with concrete sub-item
+        RgvRecipeManager manager = new RgvRecipeManager();
+        RgvRecipeCategory cat = new RgvRecipeCategory("crafting", "Crafting", RgvStack.empty());
+        manager.addCategory(cat);
+
+        RgvStack beeswax = RgvStack.of("forestry:beeswax", 0, 1, "Beeswax");
+        SimpleRecipe recipe = new SimpleRecipe("comb_to_wax", cat, Collections.singletonList(wildcardComb), beeswax);
+        manager.addRecipe(recipe);
+
+        MockInventory inv = new MockInventory();
+        inv.add(forestComb, 5);
+
+        RgvCraftGraph graph = new RgvCraftGraph();
+        RgvCraftGraphTab tab = graph.addTabForRecipe(recipe, 1, manager, inv);
+        assertNotNull(tab);
+        assertNotNull(tab.getRootNode());
+        assertEquals(1, tab.getRootNode().getChildren().size());
+        assertTrue(tab.getRootNode().getChildren().get(0).getStack().matches(forestComb));
+    }
 }

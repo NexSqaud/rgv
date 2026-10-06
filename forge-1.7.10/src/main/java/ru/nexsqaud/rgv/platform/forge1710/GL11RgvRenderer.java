@@ -120,10 +120,13 @@ public class GL11RgvRenderer implements RgvDrawContext {
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
 
         renderItem.zLevel = 200.0F;
-        renderItem.renderItemAndEffectIntoGUI(fontRenderer, mc.getTextureManager(), mcStack, x, y);
-        ItemStack overlayStack = mcStack.copy();
-        overlayStack.stackSize = 1;
-        renderItem.renderItemOverlayIntoGUI(fontRenderer, mc.getTextureManager(), overlayStack, x, y, "");
+        try {
+            renderItem.renderItemAndEffectIntoGUI(fontRenderer, mc.getTextureManager(), mcStack, x, y);
+            ItemStack overlayStack = mcStack.copy();
+            overlayStack.stackSize = 1;
+            renderItem.renderItemOverlayIntoGUI(fontRenderer, mc.getTextureManager(), overlayStack, x, y, "");
+        } catch (Throwable ignored) {
+        }
         renderItem.zLevel = 0.0F;
 
         RenderHelper.disableStandardItemLighting();

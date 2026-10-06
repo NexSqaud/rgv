@@ -113,7 +113,10 @@ public class GL11RgvRenderer1122 implements RgvDrawContext {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
         renderItem.zLevel = 200.0F;
-        renderItem.renderItemAndEffectIntoGUI(mcStack, x, y);
+        try {
+            renderItem.renderItemAndEffectIntoGUI(mcStack, x, y);
+        } catch (Throwable ignored) {
+        }
         renderItem.zLevel = 0.0F;
 
         RenderHelper.disableStandardItemLighting();
