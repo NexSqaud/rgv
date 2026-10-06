@@ -133,6 +133,7 @@ public class RgvScreenManager implements RgvRecipeScreen.RecipeLookupHandler {
     public void handleAKey() {
         if (hoveredStack != null && !hoveredStack.isEmpty()) {
             config.toggleBookmark(hoveredStack);
+            saveConfigAndTabs();
         }
     }
 
@@ -144,8 +145,17 @@ public class RgvScreenManager implements RgvRecipeScreen.RecipeLookupHandler {
         RgvPlatform platform = RgvPlatform.get();
         if (platform != null) {
             config.load(platform.getConfigDirectory());
+            getCraftGraph().load(platform.getConfigDirectory(), recipeManager);
             index.setAllItems(platform.getAllKnownStacks());
             updateCraftableFilter();
+        }
+    }
+
+    public void saveConfigAndTabs() {
+        RgvPlatform platform = RgvPlatform.get();
+        if (platform != null) {
+            config.save(platform.getConfigDirectory());
+            getCraftGraph().save(platform.getConfigDirectory());
         }
     }
 

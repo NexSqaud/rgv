@@ -1,21 +1,23 @@
 package ru.nexsqaud.rgv.platform.forge1122.gui;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.fml.client.config.GuiUtils;
 import ru.nexsqaud.rgv.api.RgvIngredient;
 import ru.nexsqaud.rgv.api.RgvInventory;
 import ru.nexsqaud.rgv.api.RgvRecipe;
+import ru.nexsqaud.rgv.api.RgvRecipeCategory;
 import ru.nexsqaud.rgv.api.RgvStack;
-import ru.nexsqaud.rgv.core.screen.RgvRecipeScreen;
+import ru.nexsqaud.rgv.api.widget.RgvWidgetHolder;
 import ru.nexsqaud.rgv.core.screen.RgvScreenManager;
-import ru.nexsqaud.rgv.core.tree.RgvCraftGraphTab;
 import ru.nexsqaud.rgv.platform.forge1122.Forge1122Platform;
 import ru.nexsqaud.rgv.platform.forge1122.RgvMod1122;
+import ru.nexsqaud.rgv.platform.forge1122.recipe.VanillaRecipesPlugin1122;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -24,72 +26,145 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Dedicated GuiButton for JEI's RecipesGui in 1.12.2 to import recipe into RGV Craft Graph.
+ * Handles rendering and user interaction for the "+ Graph" button on JEI's RecipesGui in 1.12.2.
  */
-public class RgvJeiGraphButton1122 extends GuiButton {
+public class RgvJeiGraphButton1122 {
 
-    private final GuiScreen guiScreen;
-    private final RgvScreenManager screenManager;
+    private static final ResourceLocation WIDGETS_TEXTURE = new ResourceLocation("textures/gui/widgets.png");
+    private static Field fRecipeLayouts;
 
-    public RgvJeiGraphButton1122(int id, GuiScreen guiScreen, RgvScreenManager screenManager) {
-        super(id, 0, 0, 54, 20, "+ Graph");
-        this.guiScreen = guiScreen;
-        this.screenManager = screenManager;
-    }
+    public static void render(GuiScreen screen, RgvScreenManager screenManager, int mouseX, int mouseY, float partialTicks) {
+        if (screen == null || screenManager == null) return;
+        if (screenManager.getRecipeScreen().isOpen()) return;
 
-    @Override
-    public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
-        if (guiScreen == null || screenManager == null) {
-            this.visible = false;
-            return;
+        List<?> layouts = getRecipeLayouts(screen);
+        if (layouts == null || layouts.isEmpty()) return;
+
+        Object hoveredLayout = null;
+
+        for (Object layout : layouts) {
+            if (layout == null) continue;
+            int[] pos = getButtonPosition(layout);
+            int bx = pos[0];
+            int by = pos[1];
+            int bw = 14;
+            int bh = 14;
+
+            boolean hovered = mouseX >= bx && mouseY >= by && mouseX < bx + bw && mouseY < by + bh;
+            if (hovered) {
+                hoveredLayout = layout;
+            }
+
+            GlStateManager.disableLighting();
+            GlStateManager.enableTexture2D();
+            GlStateManager.enableBlend();
+            GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+
+            int k = hovered ? 2 : 1;
+            int vBase = 46 + k * 20;
+            int w1 = bw / 2;
+            int w2 = bw - w1;
+            int h1 = bh / 2;
+            int h2 = bh - h1;
+
+            Minecraft.getMinecraft().getTextureManager().bindTexture(WIDGETS_TEXTURE);
+            screen.drawTexturedModalRect(bx, by, 0, vBase, w1, h1);
+            screen.drawTexturedModalRect(bx + w1, by, 200 - w2, vBase, w2, h1);
+            screen.drawTexturedModalRect(bx, by + h1, 0, vBase + 20 - h2, w1, h2);
+            screen.drawTexturedModalRect(bx + w1, by + h1, 200 - w2, vBase + 20 - h2, w2, h2);
+
+            RgvHostPlannerButton1122.drawGraphIcon(bx + bw / 2, by + bh / 2, hovered);
         }
 
-        if (screenManager.getRecipeScreen().isOpen()) {
-            this.visible = false;
-            return;
-        }
-
-        int guiLeft = getIntField(guiScreen, "guiLeft", (mc.currentScreen.width - 176) / 2);
-        int guiTop = getIntField(guiScreen, "guiTop", (mc.currentScreen.height - 166) / 2);
-        int xSize = getIntField(guiScreen, "xSize", 176);
-
-        this.visible = true;
-        this.x = guiLeft + xSize + 2;
-        this.y = guiTop + 24;
-        this.width = 54;
-        this.height = 20;
-
-        this.hovered = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
-
-        GlStateManager.disableLighting();
-        GlStateManager.disableDepth();
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-
-        boolean hover = this.hovered;
-        Gui.drawRect(x, y, x + width, y + height, 0xFF373737);
-        Gui.drawRect(x + 1, y + 1, x + width - 1, y + height - 1, hover ? 0xFF337733 : 0xFF3F3F3F);
-
-        FontRenderer fr = mc.fontRenderer;
-        int textW = fr.getStringWidth("+ Graph");
-        int textX = x + (width - textW) / 2;
-        int textY = y + (height - 8) / 2;
-        fr.drawStringWithShadow("+ Graph", textX, textY, hover ? 0x55FF55 : 0xFFFFFF);
-
-        GlStateManager.enableDepth();
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-    }
-
-    public void onClicked() {
-        if (guiScreen == null || screenManager == null) return;
-        RgvRecipe recipe = extractJeiRecipe(guiScreen);
-        if (recipe != null) {
-            RgvInventory inv = ru.nexsqaud.rgv.core.platform.RgvPlatform.get() != null ? ru.nexsqaud.rgv.core.platform.RgvPlatform.get().getPlayerInventory() : null;
-            screenManager.getCraftGraph().addTabForRecipe(recipe, 1, RgvMod1122.getRecipeManager(), inv);
-            screenManager.openGraph();
+        if (hoveredLayout != null) {
+            List<String> tip = new ArrayList<>();
+            tip.add("\u00a7bAdd to Craft Graph");
+            tip.add("\u00a77Send this recipe to the RGV Graph Planner");
+            GuiUtils.drawHoveringText(tip, mouseX, mouseY, screen.width, screen.height, -1, Minecraft.getMinecraft().fontRenderer);
         }
     }
 
-    private static int getIntField(Object obj, String fieldName, int def) {
+    public static boolean mouseClicked(GuiScreen screen, RgvScreenManager screenManager, int mouseX, int mouseY, int mouseButton) {
+        if (mouseButton != 0 || screen == null || screenManager == null) return false;
+        if (screenManager.getRecipeScreen().isOpen()) return false;
+
+        List<?> layouts = getRecipeLayouts(screen);
+        if (layouts == null || layouts.isEmpty()) return false;
+
+        for (Object layout : layouts) {
+            if (layout == null) continue;
+            int[] pos = getButtonPosition(layout);
+            int bx = pos[0];
+            int by = pos[1];
+            int bw = 14;
+            int bh = 14;
+
+            if (mouseX >= bx && mouseY >= by && mouseX < bx + bw && mouseY < by + bh) {
+                RgvRecipe recipe = extractJeiRecipe(layout);
+                if (recipe != null) {
+                    RgvInventory inv = ru.nexsqaud.rgv.core.platform.RgvPlatform.get() != null
+                            ? ru.nexsqaud.rgv.core.platform.RgvPlatform.get().getPlayerInventory() : null;
+                    screenManager.getCraftGraph().addTabForRecipe(recipe, 1, RgvMod1122.getRecipeManager(), inv);
+                    screenManager.openGraph();
+                    Minecraft.getMinecraft().getSoundHandler().playSound(
+                            net.minecraft.client.audio.PositionedSoundRecord.getMasterRecord(
+                                    net.minecraft.init.SoundEvents.UI_BUTTON_CLICK, 1.0F
+                            )
+                    );
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static int[] getButtonPosition(Object layout) {
+        try {
+            Method mTransfer = layout.getClass().getMethod("getRecipeTransferButton");
+            Object transferBtn = mTransfer.invoke(layout);
+            if (transferBtn instanceof GuiButton) {
+                GuiButton btn = (GuiButton) transferBtn;
+                return new int[]{btn.x - 15, btn.y};
+            }
+        } catch (Throwable ignored) {}
+
+        int posX = getIntField(layout, "posX", 0);
+        int posY = getIntField(layout, "posY", 0);
+        return new int[]{posX + 154 - 15, posY + 45};
+    }
+
+    private static List<?> getRecipeLayouts(GuiScreen screen) {
+        try {
+            if (fRecipeLayouts == null) {
+                for (Field f : screen.getClass().getDeclaredFields()) {
+                    if (List.class.isAssignableFrom(f.getType())) {
+                        f.setAccessible(true);
+                        List<?> list = (List<?>) f.get(screen);
+                        if (list != null && !list.isEmpty() && list.get(0).getClass().getName().contains("RecipeLayout")) {
+                            fRecipeLayouts = f;
+                            return list;
+                        }
+                    }
+                }
+                for (Field f : screen.getClass().getSuperclass().getDeclaredFields()) {
+                    if (List.class.isAssignableFrom(f.getType())) {
+                        f.setAccessible(true);
+                        List<?> list = (List<?>) f.get(screen);
+                        if (list != null && !list.isEmpty() && list.get(0).getClass().getName().contains("RecipeLayout")) {
+                            fRecipeLayouts = f;
+                            return list;
+                        }
+                    }
+                }
+            } else {
+                return (List<?>) fRecipeLayouts.get(screen);
+            }
+        } catch (Throwable ignored) {}
+        return Collections.emptyList();
+    }
+
+    public static int getIntField(Object obj, String fieldName, int def) {
         try {
             Field f = obj.getClass().getDeclaredField(fieldName);
             f.setAccessible(true);
@@ -105,46 +180,7 @@ public class RgvJeiGraphButton1122 extends GuiButton {
         }
     }
 
-    private RgvRecipe extractJeiRecipe(GuiScreen screen) {
-        try {
-            Field fLayouts = null;
-            for (Field f : screen.getClass().getDeclaredFields()) {
-                if (List.class.isAssignableFrom(f.getType())) {
-                    f.setAccessible(true);
-                    List<?> list = (List<?>) f.get(screen);
-                    if (list != null && !list.isEmpty() && list.get(0).getClass().getName().contains("RecipeLayout")) {
-                        fLayouts = f;
-                        break;
-                    }
-                }
-            }
-            if (fLayouts == null) {
-                for (Field f : screen.getClass().getSuperclass().getDeclaredFields()) {
-                    if (List.class.isAssignableFrom(f.getType())) {
-                        f.setAccessible(true);
-                        List<?> list = (List<?>) f.get(screen);
-                        if (list != null && !list.isEmpty() && list.get(0).getClass().getName().contains("RecipeLayout")) {
-                            fLayouts = f;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (fLayouts != null) {
-                List<?> layouts = (List<?>) fLayouts.get(screen);
-                if (layouts != null && !layouts.isEmpty()) {
-                    Object layout = layouts.get(0);
-                    return createRecipeFromJeiLayout(layout);
-                }
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return null;
-    }
-
-    private RgvRecipe createRecipeFromJeiLayout(Object layout) {
+    private static RgvRecipe extractJeiRecipe(Object layout) {
         try {
             Method mGetItemStacks = layout.getClass().getMethod("getItemStacks");
             Object itemStacks = mGetItemStacks.invoke(layout);
@@ -179,17 +215,55 @@ public class RgvJeiGraphButton1122 extends GuiButton {
             }
 
             if (output != null) {
+                // First check if an existing registered recipe matches to ensure persistent graph tabs
+                List<RgvRecipe> existingRecipes = RgvMod1122.getRecipeManager().getRecipesFor(output);
+                for (RgvRecipe r : existingRecipes) {
+                    boolean outputMatched = false;
+                    for (RgvStack o : r.getOutputs()) {
+                        if (o.matches(output) && o.getAmount() == output.getAmount()) {
+                            outputMatched = true;
+                            break;
+                        }
+                    }
+                    if (outputMatched && inputsMatch(r.getInputs(), inputs)) {
+                        return r;
+                    }
+                }
+                if (existingRecipes.size() == 1) {
+                    return existingRecipes.get(0);
+                }
+
+                String catUid = "";
+                try {
+                    Method mCat = layout.getClass().getMethod("getRecipeCategory");
+                    Object catObj = mCat.invoke(layout);
+                    Method mUid = catObj.getClass().getMethod("getUid");
+                    catUid = (String) mUid.invoke(catObj);
+                } catch (Throwable ignored) {}
+
+                final boolean isSmelting = catUid != null && catUid.toLowerCase().contains("smelt");
+                final RgvRecipeCategory category = isSmelting
+                        ? VanillaRecipesPlugin1122.SMELTING_CATEGORY
+                        : VanillaRecipesPlugin1122.CRAFTING_CATEGORY;
+
                 final RgvStack finalOutput = output;
                 final List<RgvIngredient> finalInputs = inputs;
-                return new RgvRecipe() {
+                final String stableId = "jei_" + finalOutput.getId().replace(':', '_') + "_" + finalOutput.getMeta() + "_" + inputs.size();
+
+                RgvRecipe existingSynthetic = RgvMod1122.getRecipeManager().getRecipeById(stableId);
+                if (existingSynthetic != null) {
+                    return existingSynthetic;
+                }
+
+                RgvRecipe syntheticRecipe = new RgvRecipe() {
                     @Override
                     public String getId() {
-                        return "jei_" + finalOutput.getId() + "_" + System.identityHashCode(this);
+                        return stableId;
                     }
 
                     @Override
-                    public ru.nexsqaud.rgv.api.RgvRecipeCategory getCategory() {
-                        return ru.nexsqaud.rgv.platform.forge1122.recipe.VanillaRecipesPlugin1122.CRAFTING_CATEGORY;
+                    public RgvRecipeCategory getCategory() {
+                        return category;
                     }
 
                     @Override
@@ -203,20 +277,53 @@ public class RgvJeiGraphButton1122 extends GuiButton {
                     }
 
                     @Override
-                    public void addWidgets(ru.nexsqaud.rgv.api.widget.RgvWidgetHolder holder) {
-                        int x = 4;
-                        for (RgvIngredient in : finalInputs) {
-                            holder.addSlot(in, x, 18);
-                            x += 18;
+                    public void addWidgets(RgvWidgetHolder holder) {
+                        if (isSmelting) {
+                            if (!finalInputs.isEmpty()) {
+                                holder.addSlot(finalInputs.get(0), 18, 4);
+                            }
+                            holder.addArrow(44, 22, false);
+                            holder.addOutputSlot(finalOutput, 76, 22);
+                        } else {
+                            int startX = 6;
+                            int startY = 6;
+                            for (int idx = 0; idx < finalInputs.size() && idx < 9; idx++) {
+                                int ix = startX + (idx % 3) * 18;
+                                int iy = startY + (idx / 3) * 18;
+                                holder.addSlot(finalInputs.get(idx), ix, iy);
+                            }
+                            holder.addArrow(66, 24, false);
+                            holder.addOutputSlot(finalOutput, 96, 24);
                         }
-                        holder.addArrow(x + 4, 18, false);
-                        holder.addOutputSlot(finalOutput, x + 32, 18);
                     }
                 };
+
+                RgvMod1122.getRecipeManager().addRecipe(syntheticRecipe);
+                return syntheticRecipe;
             }
         } catch (Throwable t) {
             t.printStackTrace();
         }
         return null;
+    }
+
+    private static boolean inputsMatch(List<RgvIngredient> rInputs, List<RgvIngredient> jeiInputs) {
+        List<RgvIngredient> rFiltered = new ArrayList<>();
+        for (RgvIngredient in : rInputs) {
+            if (in != null && !in.isEmpty()) rFiltered.add(in);
+        }
+        List<RgvIngredient> jFiltered = new ArrayList<>();
+        for (RgvIngredient in : jeiInputs) {
+            if (in != null && !in.isEmpty()) jFiltered.add(in);
+        }
+        if (rFiltered.size() != jFiltered.size()) return false;
+        for (int i = 0; i < rFiltered.size(); i++) {
+            RgvIngredient rIn = rFiltered.get(i);
+            RgvIngredient jIn = jFiltered.get(i);
+            if (!rIn.matches(jIn.getRgvStacks().isEmpty() ? RgvStack.empty() : jIn.getRgvStacks().get(0))) {
+                return false;
+            }
+        }
+        return true;
     }
 }

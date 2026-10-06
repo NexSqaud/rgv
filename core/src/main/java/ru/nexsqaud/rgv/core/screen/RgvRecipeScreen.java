@@ -129,6 +129,9 @@ public class RgvRecipeScreen {
         this.isSelectingForGraph = false;
         this.graphSelectingTab = null;
         this.graphSelectingNode = null;
+        if (craftGraph != null) {
+            craftGraph.save();
+        }
         if (listener != null) {
             listener.onClose();
         }
@@ -433,16 +436,12 @@ public class RgvRecipeScreen {
                 boolean prevHover = mouseX >= prevBtnX && mouseX < prevBtnX + prevBtnW && mouseY >= prevBtnY && mouseY < prevBtnY + prevBtnH;
                 boolean nextHover = mouseX >= nextBtnX && mouseX < nextBtnX + nextBtnW && mouseY >= nextBtnY && mouseY < nextBtnY + nextBtnH;
 
-                if (prevHover) {
-                    context.drawRect(prevBtnX, prevBtnY, prevBtnW, prevBtnH, 0x30000000);
-                }
-                if (nextHover) {
-                    context.drawRect(nextBtnX, nextBtnY, nextBtnW, nextBtnH, 0x30000000);
-                }
+                drawVanillaButton(context, prevBtnX, prevBtnY, prevBtnW, prevBtnH, prevHover, true);
+                drawVanillaButton(context, nextBtnX, nextBtnY, nextBtnW, nextBtnH, nextHover, true);
 
                 context.drawText(pageText, textX, y + 26, 0x444444, false);
-                context.drawText("<", prevX, y + 25, prevHover ? 0xFFFFFF : 0x333333, true);
-                context.drawText(">", nextX, y + 25, nextHover ? 0xFFFFFF : 0x333333, true);
+                context.drawText("<", prevX, y + 25, prevHover ? 0xFFFFFF : 0xAAAAAA, false);
+                context.drawText(">", nextX, y + 25, nextHover ? 0xFFFFFF : 0xAAAAAA, false);
             } else {
                 prevBtnW = 0;
                 nextBtnW = 0;
@@ -471,25 +470,24 @@ public class RgvRecipeScreen {
                     int resetX = x + 8;
                     int resetW = 74;
                     boolean resetHover = mouseX >= resetX && mouseX < resetX + resetW && mouseY >= btnY && mouseY < btnY + 14;
-                    context.drawRect(resetX, btnY, resetW, 14, resetHover ? 0xFFAA4444 : 0xFF773333);
-                    context.drawText("Reset Raw", resetX + 8, btnY + 3, 0xFFFFFF, true);
+                    drawVanillaButton(context, resetX, btnY, resetW, 14, resetHover, true);
+                    context.drawText("Reset Raw", resetX + 10, btnY + 3, resetHover ? 0xFF8888 : 0xEE6666, true);
                 }
 
                 // [✓ Use Craft] button on the right
                 int useW = 86;
                 int useX = x + width - useW - 8;
                 boolean useHover = mouseX >= useX && mouseX < useX + useW && mouseY >= btnY && mouseY < btnY + 14;
-                context.drawRect(useX, btnY, useW, 14, useHover ? 0xFF2A882A : 0xFF1E661E);
-                context.drawText("\u2713 Use Craft", useX + 10, btnY + 3, 0xFFFFFF, true);
+                drawVanillaButton(context, useX, btnY, useW, 14, useHover, true);
+                context.drawText("\u2713 Use Craft", useX + 10, btnY + 3, useHover ? 0xFFFFFF : 0x55FF55, true);
 
                 // [< Back] button to the left of Use Craft
                 int backW = 50;
                 int backX = useX - backW - 6;
                 boolean backHover = mouseX >= backX && mouseX < backX + backW && mouseY >= btnY && mouseY < btnY + 14;
-                context.drawRect(backX, btnY, backW, 14, backHover ? 0xFF666666 : 0xFF444444);
-                context.drawText("< Back", backX + 8, btnY + 3, 0xCCCCCC, false);
-            }
- else {
+                drawVanillaButton(context, backX, btnY, backW, 14, backHover, true);
+                context.drawText("< Back", backX + 8, btnY + 3, backHover ? 0xFFFFFF : 0xCCCCCC, false);
+            } else {
                 RgvRecipe current = currentRecipes.get(currentRecipeIndex);
                 RgvPlatform platform = RgvPlatform.get();
                 TransferStatus status = platform != null ? platform.getTransferStatus(current) : TransferStatus.NO_SUITABLE_CONTAINER;
@@ -498,14 +496,14 @@ public class RgvRecipeScreen {
                 int btnX = x + width - 22;
                 boolean hover = mouseX >= btnX && mouseX < btnX + 14 && mouseY >= btnY && mouseY < btnY + 14;
 
-                context.drawRect(btnX, btnY, 14, 14, canTransfer ? (hover ? 0xFF888888 : 0xFF555555) : 0xFF333333);
-                context.drawText("+", btnX + 4, btnY + 3, canTransfer ? 0x55FF55 : 0x777777, true);
+                drawVanillaButton(context, btnX, btnY, 14, 14, hover, canTransfer);
+                context.drawText("+", btnX + 4, btnY + 3, canTransfer ? (hover ? 0xFFFFFF : 0x55FF55) : 0x777777, true);
 
-                int graphBtnX = btnX - 58;
+                int graphBtnX = btnX - 16;
                 int graphBtnY = btnY;
-                boolean gHover = mouseX >= graphBtnX && mouseX < graphBtnX + 54 && mouseY >= graphBtnY && mouseY < graphBtnY + 14;
-                context.drawRect(graphBtnX, graphBtnY, 54, 14, gHover ? 0xFF55AA55 : 0xFF444444);
-                context.drawText("+ Graph", graphBtnX + 4, graphBtnY + 3, 0xFFFFFF, false);
+                boolean gHover = mouseX >= graphBtnX && mouseX < graphBtnX + 14 && mouseY >= graphBtnY && mouseY < graphBtnY + 14;
+                drawVanillaButton(context, graphBtnX, graphBtnY, 14, 14, gHover, true);
+                drawGraphIcon(context, graphBtnX + 7, graphBtnY + 7, gHover);
             }
         }
     }
@@ -1005,10 +1003,10 @@ public class RgvRecipeScreen {
                     return;
                 }
 
-                int graphBtnX = btnX - 58;
-                if (mouseX >= graphBtnX && mouseX < graphBtnX + 54 && mouseY >= btnY && mouseY < btnY + 14) {
+                int graphBtnX = btnX - 16;
+                if (mouseX >= graphBtnX && mouseX < graphBtnX + 14 && mouseY >= btnY && mouseY < btnY + 14) {
                     List<String> tip = new ArrayList<>();
-                    tip.add("\u00a7bAdd to Graph (+ Graph)");
+                    tip.add("\u00a7bAdd to Craft Graph");
                     tip.add("\u00a77Creates a new tab in the Craft Graph planner");
                     context.drawTooltip(tip, mouseX, mouseY);
                     return;
@@ -1125,6 +1123,7 @@ public class RgvRecipeScreen {
                 if (mouseX >= resetX && mouseX < resetX + resetW && mouseY >= btnY && mouseY < btnY + 14) {
                     if (graphSelectingTab != null) {
                         graphSelectingTab.removeRecipeForIngredient(graphSelectingNode.getStack(), recipeManager);
+                        craftGraph.save();
                     }
                     closePicker();
                     setViewMode(ViewMode.GRAPH);
@@ -1142,8 +1141,10 @@ public class RgvRecipeScreen {
                     RgvRecipe chosen = currentRecipes.get(currentRecipeIndex);
                     if (graphSelectingNode != null && graphSelectingTab != null) {
                         graphSelectingTab.setRecipeForIngredient(graphSelectingNode.getStack(), chosen, recipeManager);
+                        craftGraph.save();
                     } else if (graphSelectingTab != null && graphSelectingTab.isSelectingRecipe()) {
                         graphSelectingTab.assignRecipe(chosen, graphSelectingTab.getTargetStack(), recipeManager);
+                        craftGraph.save();
                     }
                     closePicker();
                     setViewMode(ViewMode.GRAPH);
@@ -1181,9 +1182,9 @@ public class RgvRecipeScreen {
                 return true;
             }
 
-            // [+ Graph] button
-            int graphBtnX = btnX - 58;
-            if (mouseX >= graphBtnX && mouseX < graphBtnX + 54 && mouseY >= btnY && mouseY < btnY + 14) {
+            // Add to Graph button
+            int graphBtnX = btnX - 16;
+            if (mouseX >= graphBtnX && mouseX < graphBtnX + 14 && mouseY >= btnY && mouseY < btnY + 14) {
                 if (!currentRecipes.isEmpty()) {
                     RgvRecipe r = currentRecipes.get(currentRecipeIndex);
                     RgvInventory inv = RgvPlatform.get() != null ? RgvPlatform.get().getPlayerInventory() : null;
@@ -1279,13 +1280,7 @@ public class RgvRecipeScreen {
                     if (mouseX >= slotX && mouseX < slotX + 18 && mouseY >= slotY && mouseY < slotY + 18) {
                         activeTab.selectItem(items.get(startIdx + i), recipeManager);
                         if (activeTab.isSelectingRecipe()) {
-                            if (platform != null && platform.isRecipeViewerPresent()) {
-                                craftGraph.setPendingTarget(activeTab, null);
-                                close();
-                                platform.openExternalRecipeViewer(activeTab.getTargetStack(), false);
-                            } else {
-                                openRecipePickerForNode(activeTab, null, activeTab.getCandidateRecipes());
-                            }
+                            openRecipePickerForNode(activeTab, null, activeTab.getCandidateRecipes());
                         } else {
                             centerGraph(activeTab, width - 12, height - 52);
                         }
@@ -1298,14 +1293,7 @@ public class RgvRecipeScreen {
 
         if (activeTab.isSelectingRecipe()) {
             List<RgvRecipe> recipes = activeTab.getCandidateRecipes();
-            RgvPlatform platform = RgvPlatform.get();
-            if (platform != null && platform.isRecipeViewerPresent()) {
-                craftGraph.setPendingTarget(activeTab, null);
-                close();
-                platform.openExternalRecipeViewer(activeTab.getTargetStack(), false);
-            } else {
-                openRecipePickerForNode(activeTab, null, recipes);
-            }
+            openRecipePickerForNode(activeTab, null, recipes);
             return true;
         }
 
@@ -1315,24 +1303,19 @@ public class RgvRecipeScreen {
         int plusX = x + 88;
         if (mouseX >= minusX && mouseX < minusX + 12 && mouseY >= controlY + 2 && mouseY < controlY + 14) {
             activeTab.decrementAmount(recipeManager);
+            craftGraph.save();
             return true;
         }
         if (mouseX >= plusX && mouseX < plusX + 12 && mouseY >= controlY + 2 && mouseY < controlY + 14) {
             activeTab.incrementAmount(recipeManager);
+            craftGraph.save();
             return true;
         }
 
         if (hoveredGraphNode != null) {
             List<RgvRecipe> recipes = recipeManager.getRecipesFor(hoveredGraphNode.getStack());
             if (!recipes.isEmpty()) {
-                RgvPlatform platform = RgvPlatform.get();
-                if (platform != null && platform.isRecipeViewerPresent()) {
-                    craftGraph.setPendingTarget(activeTab, hoveredGraphNode);
-                    close();
-                    platform.openExternalRecipeViewer(hoveredGraphNode.getStack(), false);
-                } else {
-                    openRecipePickerForNode(activeTab, hoveredGraphNode, recipes);
-                }
+                openRecipePickerForNode(activeTab, hoveredGraphNode, recipes);
                 return true;
             }
         }
@@ -1494,4 +1477,40 @@ public class RgvRecipeScreen {
     public int getNextBtnY() { return nextBtnY; }
     public int getNextBtnW() { return nextBtnW; }
     public int getNextBtnH() { return nextBtnH; }
+
+    public static void drawVanillaButton(RgvDrawContext context, int x, int y, int width, int height, boolean hovered, boolean enabled) {
+        int state = !enabled ? 0 : (hovered ? 2 : 1);
+        int vBase = 46 + state * 20;
+        int w1 = width / 2;
+        int w2 = width - w1;
+        int h1 = height / 2;
+        int h2 = height - h1;
+
+        context.drawTexture("minecraft:textures/gui/widgets.png", x, y, 0, vBase, w1, h1, 256, 256);
+        context.drawTexture("minecraft:textures/gui/widgets.png", x + w1, y, 200 - w2, vBase, w2, h1, 256, 256);
+        context.drawTexture("minecraft:textures/gui/widgets.png", x, y + h1, 0, vBase + 20 - h2, w1, h2, 256, 256);
+        context.drawTexture("minecraft:textures/gui/widgets.png", x + w1, y + h1, 200 - w2, vBase + 20 - h2, w2, h2, 256, 256);
+    }
+
+    public static void drawGraphIcon(RgvDrawContext context, int cx, int cy, boolean hover) {
+        int rootColor = hover ? 0xFFFFFFFF : 0xFF55FFFF;
+        int leafColor = hover ? 0xFF88FF88 : 0xFF55FF55;
+        int lineColor = hover ? 0xFFFFFFFF : 0xFFAAAAAA;
+
+        // Top root node (3x3)
+        context.drawRect(cx - 1, cy - 4, 3, 3, rootColor);
+        // Bottom-left leaf node (3x3)
+        context.drawRect(cx - 5, cy + 2, 3, 3, leafColor);
+        // Bottom-right leaf node (3x3)
+        context.drawRect(cx + 3, cy + 2, 3, 3, leafColor);
+
+        // Connecting lines (diagonal pixels)
+        context.drawRect(cx - 2, cy - 1, 1, 1, lineColor);
+        context.drawRect(cx - 3, cy, 1, 1, lineColor);
+        context.drawRect(cx - 4, cy + 1, 1, 1, lineColor);
+
+        context.drawRect(cx + 2, cy - 1, 1, 1, lineColor);
+        context.drawRect(cx + 3, cy, 1, 1, lineColor);
+        context.drawRect(cx + 4, cy + 1, 1, 1, lineColor);
+    }
 }

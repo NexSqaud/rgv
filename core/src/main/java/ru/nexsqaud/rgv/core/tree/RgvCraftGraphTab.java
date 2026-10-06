@@ -18,10 +18,12 @@ public class RgvCraftGraphTab {
     private String title;
     private RgvStack targetStack;
     private RgvRecipe rootRecipe;
+    private String savedRootRecipeId;
     private int targetAmount = 1;
 
     // Assigned recipe per ingredient key (id:meta -> chosen recipe)
     private final Map<String, RgvRecipe> assignedRecipes = new LinkedHashMap<>();
+    private final Map<String, String> savedAssignedRecipeIds = new LinkedHashMap<>();
 
     // The root of the layout tree (Level 0)
     private RgvGraphNode rootNode;
@@ -42,6 +44,7 @@ public class RgvCraftGraphTab {
         this.title = title != null ? title : (targetStack != null ? targetStack.getDisplayName() : "New Plan");
         this.targetStack = targetStack;
         this.rootRecipe = rootRecipe;
+        this.savedRootRecipeId = rootRecipe != null ? rootRecipe.getId() : null;
         this.targetAmount = Math.max(1, amount);
     }
 
@@ -143,12 +146,14 @@ public class RgvCraftGraphTab {
 
     public void assignRecipe(RgvRecipe recipe, RgvStack stack, RgvRecipeManager manager) {
         this.rootRecipe = recipe;
+        this.savedRootRecipeId = recipe != null ? recipe.getId() : null;
         this.targetStack = stack != null ? stack : (!recipe.getOutputs().isEmpty() ? recipe.getOutputs().get(0) : RgvStack.empty());
         this.title = this.targetStack.getDisplayName();
         this.isSelectingItem = false;
         this.isSelectingRecipe = false;
         this.candidateRecipes.clear();
         this.assignedRecipes.clear();
+        this.savedAssignedRecipeIds.clear();
         rebuildGraph(manager);
     }
 
@@ -162,6 +167,7 @@ public class RgvCraftGraphTab {
         if (stack == null || stack.isEmpty() || recipe == null) return;
         String key = getIngredientKey(stack);
         assignedRecipes.put(key, recipe);
+        savedAssignedRecipeIds.put(key, recipe.getId());
         rebuildGraph(manager);
     }
 
@@ -169,6 +175,7 @@ public class RgvCraftGraphTab {
         if (stack == null || stack.isEmpty()) return;
         String key = getIngredientKey(stack);
         assignedRecipes.remove(key);
+        savedAssignedRecipeIds.remove(key);
         rebuildGraph(manager);
     }
 
@@ -184,11 +191,59 @@ public class RgvCraftGraphTab {
         return assignedRecipes.get(key);
     }
 
+    public void setSelectingRecipe(boolean selectingRecipe) {
+        this.isSelectingRecipe = selectingRecipe;
+    }
+
+    public Map<String, RgvRecipe> getAssignedRecipes() {
+        return Collections.unmodifiableMap(assignedRecipes);
+    }
+
+    public String getSavedRootRecipeId() {
+        return savedRootRecipeId != null ? savedRootRecipeId : (rootRecipe != null ? rootRecipe.getId() : null);
+    }
+
+    public void setSavedRootRecipeId(String id) {
+        this.savedRootRecipeId = id;
+    }
+
+    public Map<String, String> getSavedAssignedRecipeIds() {
+        return Collections.unmodifiableMap(savedAssignedRecipeIds);
+    }
+
+    public void setSavedAssignedRecipeIds(Map<String, String> map) {
+        if (map != null) {
+            this.savedAssignedRecipeIds.clear();
+            this.savedAssignedRecipeIds.putAll(map);
+        }
+    }
+
     public void recalculate(RgvRecipeManager manager, RgvInventory inventory) {
         rebuildGraph(manager);
     }
 
     public void rebuildGraph(RgvRecipeManager manager) {
+        if (manager != null) {
+            if (rootRecipe == null && savedRootRecipeId != null) {
+                this.rootRecipe = manager.getRecipeById(savedRootRecipeId);
+            }
+            if (rootRecipe == null && targetStack != null && !targetStack.isEmpty()) {
+                List<RgvRecipe> candidates = manager.getRecipesFor(targetStack);
+                if (!candidates.isEmpty()) {
+                    this.rootRecipe = candidates.get(0);
+                    this.savedRootRecipeId = this.rootRecipe.getId();
+                }
+            }
+            for (Map.Entry<String, String> entry : savedAssignedRecipeIds.entrySet()) {
+                if (!assignedRecipes.containsKey(entry.getKey())) {
+                    RgvRecipe r = manager.getRecipeById(entry.getValue());
+                    if (r != null) {
+                        assignedRecipes.put(entry.getKey(), r);
+                    }
+                }
+            }
+        }
+
         if (targetStack == null || targetStack.isEmpty() || rootRecipe == null || manager == null) {
             this.rootNode = null;
             return;

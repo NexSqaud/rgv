@@ -1,19 +1,19 @@
 package ru.nexsqaud.rgv.platform.forge1710.gui;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.renderer.OpenGlHelper;
+import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 import ru.nexsqaud.rgv.core.screen.RgvScreenManager;
 import ru.nexsqaud.rgv.platform.forge1710.compat.nei.NeiRecipeHelper;
 
+import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Dedicated button for NEI's GuiRecipe screens.
- * Positioned on the right edge outside the recipe window (guiLeft + xSize + 2).
- * Drawn during super.drawScreen() so slot tooltips always render ON TOP of it.
+ * Native vanilla-styled GuiButton with Graph Icon for NEI's GuiRecipe screens.
+ * Positioned inside the recipe window.
  */
 public class RgvNeiGraphButton extends RgvGuiButton {
 
@@ -22,7 +22,7 @@ public class RgvNeiGraphButton extends RgvGuiButton {
     private final RgvScreenManager screenManager;
 
     public RgvNeiGraphButton(int id, Object guiRecipe, int targetRow, RgvScreenManager screenManager) {
-        super(id, 0, 0, 54, 20, "+ Graph");
+        super(id, 0, 0, 14, 14, "");
         this.guiRecipe = guiRecipe;
         this.targetRow = targetRow;
         this.screenManager = screenManager;
@@ -69,53 +69,48 @@ public class RgvNeiGraphButton extends RgvGuiButton {
             return;
         }
 
-        if (perPage <= 1) {
-            if (targetRow > 0) {
-                this.visible = false;
-                return;
-            }
-            this.visible = true;
-            this.xPosition = guiLeft + xSize + 2;
-            this.yPosition = guiTop + 4;
-            this.width = 54;
-            this.height = 20;
-            this.displayString = "+ Graph";
+        if (targetRow >= perPage) {
+            this.visible = false;
+            return;
+        }
+
+        this.visible = true;
+        this.width = 14;
+        this.height = 14;
+
+        Point p = NeiRecipeHelper.getRecipePosition(guiRecipe, targetRow);
+        if (p != null) {
+            this.xPosition = guiLeft + p.x + 132;
+            this.yPosition = guiTop + p.y + (perPage > 1 ? 46 : 56);
         } else {
-            // Multi-recipe page (e.g. smelting with 2 recipes per page)
-            if (targetRow >= perPage) {
-                this.visible = false;
-                return;
-            }
-            this.visible = true;
-            this.xPosition = guiLeft + xSize + 2;
-            this.yPosition = guiTop + 16 + targetRow * 65;
-            this.width = 54;
-            this.height = 18;
-            this.displayString = "+ Graph #" + (targetRow + 1);
+            this.xPosition = guiLeft + xSize - 22;
+            this.yPosition = guiTop + (perPage <= 1 ? 36 : (22 + targetRow * 65));
         }
 
         this.field_146123_n = mouseX >= this.xPosition && mouseY >= this.yPosition
                 && mouseX < this.xPosition + this.width && mouseY < this.yPosition + this.height;
 
         GL11.glDisable(GL11.GL_LIGHTING);
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GL11.glEnable(GL11.GL_BLEND);
+        OpenGlHelper.glBlendFunc(770, 771, 1, 0);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
 
         boolean hover = this.field_146123_n;
-        // Outer dark border
-        Gui.drawRect(xPosition, yPosition, xPosition + width, yPosition + height, 0xFF373737);
-        // Inner fill
-        Gui.drawRect(xPosition + 1, yPosition + 1, xPosition + width - 1, yPosition + height - 1, hover ? 0xFF2E6B2E : 0xFF2A2A2A);
-        // Inner highlight border
-        Gui.drawRect(xPosition + 2, yPosition + 2, xPosition + width - 2, yPosition + height - 2, hover ? 0xFF3A8A3A : 0xFF3F3F3F);
+        int k = hover ? 2 : 1;
+        int vBase = 46 + k * 20;
+        int w1 = width / 2;
+        int w2 = width - w1;
+        int h1 = height / 2;
+        int h2 = height - h1;
 
-        FontRenderer fr = mc.fontRenderer;
-        int textW = fr.getStringWidth(displayString);
-        int textX = xPosition + (width - textW) / 2;
-        int textY = yPosition + (height - 8) / 2;
-        fr.drawStringWithShadow(displayString, textX, textY, hover ? 0x55FF55 : 0xFFFFFF);
+        mc.getTextureManager().bindTexture(new ResourceLocation("textures/gui/widgets.png"));
+        drawTexturedModalRect(xPosition, yPosition, 0, vBase, w1, h1);
+        drawTexturedModalRect(xPosition + w1, yPosition, 200 - w2, vBase, w2, h1);
+        drawTexturedModalRect(xPosition, yPosition + h1, 0, vBase + 20 - h2, w1, h2);
+        drawTexturedModalRect(xPosition + w1, yPosition + h1, 200 - w2, vBase + 20 - h2, w2, h2);
 
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        RgvHostPlannerButton.drawGraphIcon(xPosition + width / 2, yPosition + height / 2, hover);
     }
 
     @Override
@@ -137,7 +132,7 @@ public class RgvNeiGraphButton extends RgvGuiButton {
     @Override
     public List<String> getTooltip() {
         List<String> tip = new ArrayList<>();
-        tip.add("\u00a7a+ Add to Craft Graph");
+        tip.add("\u00a7bAdd to Craft Graph");
         tip.add("\u00a77Send this recipe to the RGV Graph Planner");
         return tip;
     }

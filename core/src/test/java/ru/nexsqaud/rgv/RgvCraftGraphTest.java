@@ -317,4 +317,54 @@ public class RgvCraftGraphTest {
         // Log is raw material leaf -> 0 leftover
         assertFalse(leftovers.containsKey(log.copyWithAmount(1)));
     }
+
+    @Test
+    void testTabPersistenceAcrossSessions(@org.junit.jupiter.api.io.TempDir java.io.File tempDir) {
+        RgvRecipeManager manager = new RgvRecipeManager();
+        RgvRecipeCategory cat = new RgvRecipeCategory("crafting", "Crafting", RgvStack.empty());
+        manager.addCategory(cat);
+
+        RgvStack ironOre = RgvStack.of("minecraft:iron_ore", 0, 1, "Iron Ore");
+        RgvStack ironIngot = RgvStack.of("minecraft:iron_ingot", 0, 1, "Iron Ingot");
+        RgvStack ironSword = RgvStack.of("minecraft:iron_sword", 0, 1, "Iron Sword");
+        RgvStack stick = RgvStack.of("minecraft:stick", 0, 1, "Stick");
+
+        SimpleRecipe smeltRecipe = new SimpleRecipe("smelt_iron", cat, Collections.singletonList(ironOre), ironIngot);
+        SimpleRecipe swordRecipe = new SimpleRecipe("sword_recipe", cat, Arrays.asList(ironIngot.copyWithAmount(2), stick), ironSword);
+
+        manager.addRecipe(smeltRecipe);
+        manager.addRecipe(swordRecipe);
+
+        RgvCraftGraph originalGraph = new RgvCraftGraph();
+        RgvCraftGraphTab tab1 = originalGraph.addTabForRecipe(swordRecipe, 3, manager, null);
+        tab1.setRecipeForIngredient(ironIngot, smeltRecipe, manager);
+
+        RgvCraftGraphTab tab2 = originalGraph.createNewEmptyTab();
+        tab2.setTitle("Custom Plan 2");
+
+        originalGraph.setActiveTabIndex(0);
+
+        // Save tabs to disk
+        originalGraph.save(tempDir);
+        java.io.File savedFile = new java.io.File(tempDir, "rgv_tabs.cfg");
+        assertTrue(savedFile.exists(), "rgv_tabs.cfg must be created");
+
+        // Load into fresh graph
+        RgvCraftGraph loadedGraph = new RgvCraftGraph();
+        loadedGraph.load(tempDir, manager);
+
+        assertEquals(2, loadedGraph.getTabs().size(), "Both tabs should be restored");
+        assertEquals(0, loadedGraph.getActiveTabIndex());
+
+        RgvCraftGraphTab loadedTab1 = loadedGraph.getTabs().get(0);
+        assertEquals("Iron Sword", loadedTab1.getTitle());
+        assertEquals(3, loadedTab1.getTargetAmount());
+        assertNotNull(loadedTab1.getRootNode(), "Root node must be rebuilt");
+        assertEquals(3L, loadedTab1.getRootNode().getAmount());
+        assertTrue(loadedTab1.hasRecipeForIngredient(ironIngot), "Sub-recipe for iron ingot must be restored");
+        assertEquals(smeltRecipe.getId(), loadedTab1.getAssignedRecipe(ironIngot).getId());
+
+        RgvCraftGraphTab loadedTab2 = loadedGraph.getTabs().get(1);
+        assertEquals("Custom Plan 2", loadedTab2.getTitle());
+    }
 }
