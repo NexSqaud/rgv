@@ -36,10 +36,18 @@ repositories {
     }
 }
 
+val withJei = project.findProperty("withJei")?.toString()?.toBoolean()
+    ?: !gradle.startParameter.taskNames.any {
+        it.contains("WithoutJei", ignoreCase = true) ||
+        it.contains("NoJei", ignoreCase = true)
+    }
+
 dependencies {
     implementation(project(":core"))
     compileOnly("mezz.jei:jei_1.12.2:4.16.1.302:api")
-    runtimeOnly("mezz.jei:jei_1.12.2:4.16.1.302")
+    if (withJei) {
+        runtimeOnly("mezz.jei:jei_1.12.2:4.16.1.302")
+    }
 }
 
 val modVersion = project.findProperty("mod_version")?.toString() ?: "1.0.0"
@@ -54,5 +62,17 @@ tasks.jar {
 
 tasks.named("test") {
     enabled = false
+}
+
+tasks.register("runClientWithJei") {
+    group = "forge"
+    description = "Runs the Minecraft 1.12.2 client with JEI recipe viewer"
+    dependsOn("runClient")
+}
+
+tasks.register("runClientWithoutJei") {
+    group = "forge"
+    description = "Runs the Minecraft 1.12.2 client without JEI recipe viewer"
+    dependsOn("runClient")
 }
 

@@ -31,8 +31,32 @@ tasks.register("build1710") {
 
 tasks.register("run1710") {
     group = "forge"
-    description = "Runs the Minecraft 1.7.10 client"
+    description = "Runs the Minecraft 1.7.10 client (default: with recipe viewer)"
     dependsOn(":forge-1.7.10:runClient")
+}
+
+tasks.register("run1710WithJei") {
+    group = "forge"
+    description = "Runs the Minecraft 1.7.10 client with NEI/JEI recipe viewer"
+    dependsOn(":forge-1.7.10:runClientWithJei")
+}
+
+tasks.register("run1710WithNei") {
+    group = "forge"
+    description = "Runs the Minecraft 1.7.10 client with NEI recipe viewer (alias for run1710WithJei)"
+    dependsOn(":forge-1.7.10:runClientWithNei")
+}
+
+tasks.register("run1710WithoutJei") {
+    group = "forge"
+    description = "Runs the Minecraft 1.7.10 client without NEI/JEI recipe viewer"
+    dependsOn(":forge-1.7.10:runClientWithoutJei")
+}
+
+tasks.register("run1710WithoutNei") {
+    group = "forge"
+    description = "Runs the Minecraft 1.7.10 client without NEI recipe viewer (alias for run1710WithoutJei)"
+    dependsOn(":forge-1.7.10:runClientWithoutNei")
 }
 
 tasks.register("build1122") {
@@ -43,9 +67,22 @@ tasks.register("build1122") {
 
 tasks.register("run1122") {
     group = "forge"
-    description = "Runs the Minecraft 1.12.2 client"
+    description = "Runs the Minecraft 1.12.2 client (default: with JEI)"
     dependsOn(":forge-1.12.2:runClient")
 }
+
+tasks.register("run1122WithJei") {
+    group = "forge"
+    description = "Runs the Minecraft 1.12.2 client with JEI recipe viewer"
+    dependsOn(":forge-1.12.2:runClientWithJei")
+}
+
+tasks.register("run1122WithoutJei") {
+    group = "forge"
+    description = "Runs the Minecraft 1.12.2 client without JEI recipe viewer"
+    dependsOn(":forge-1.12.2:runClientWithoutJei")
+}
+
 
 abstract class BuildAllPlatformsTask @Inject constructor(
     private val execOperations: ExecOperations,
