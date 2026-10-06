@@ -203,4 +203,84 @@ public class RgvRecipePaginationTest {
         assertFalse(screen.mouseScrolled(1));
         assertFalse(screen.mouseScrolled(-1));
     }
+
+    @Test
+    public void testCloseSecondTabWhenActive() {
+        screen.openGraphView();
+        assertEquals(1, screen.getCraftGraph().getTabs().size());
+        assertEquals(0, screen.getCraftGraph().getActiveTabIndex());
+
+        // Add a second tab
+        screen.getCraftGraph().createNewEmptyTab();
+        assertEquals(2, screen.getCraftGraph().getTabs().size());
+        assertEquals(1, screen.getCraftGraph().getActiveTabIndex());
+
+        // Render graph mode to populate renderedTabHitboxes
+        screen.render(drawContext, 0, 0, 0f);
+
+        assertEquals(2, screen.getRenderedTabCount());
+        int tab1CloseX = screen.getTabCloseBtnX(1);
+        int tab1CloseY = screen.getTabCloseBtnY(1);
+        int tab1CloseW = screen.getTabCloseBtnW(1);
+        int tab1CloseH = screen.getTabCloseBtnH(1);
+
+        assertTrue(tab1CloseW > 0);
+        assertTrue(tab1CloseH > 0);
+
+        // Click Tab 1's close button
+        boolean handled = screen.mouseClicked(tab1CloseX + tab1CloseW / 2, tab1CloseY + tab1CloseH / 2, 0);
+        assertTrue(handled, "Click should be handled by close tab button");
+        assertEquals(1, screen.getCraftGraph().getTabs().size(), "Only one tab should remain");
+        assertEquals(0, screen.getCraftGraph().getActiveTabIndex(), "Tab 0 should become active");
+
+        // Closing the only remaining tab creates a fresh empty tab
+        screen.render(drawContext, 0, 0, 0f);
+        assertEquals(1, screen.getRenderedTabCount());
+        int tab0CloseX = screen.getTabCloseBtnX(0);
+        int tab0CloseY = screen.getTabCloseBtnY(0);
+        int tab0CloseW = screen.getTabCloseBtnW(0);
+        int tab0CloseH = screen.getTabCloseBtnH(0);
+
+        boolean closedLast = screen.mouseClicked(tab0CloseX + tab0CloseW / 2, tab0CloseY + tab0CloseH / 2, 0);
+        assertTrue(closedLast);
+        assertEquals(1, screen.getCraftGraph().getTabs().size());
+        assertEquals(0, screen.getCraftGraph().getActiveTabIndex());
+    }
+
+    @Test
+    public void testTabHitboxPartitionNoOverlapAndEdgeClicks() {
+        screen.openGraphView();
+        screen.getCraftGraph().createNewEmptyTab();
+        screen.render(drawContext, 0, 0, 0f);
+
+        assertEquals(2, screen.getRenderedTabCount());
+
+        for (int i = 0; i < 2; i++) {
+            int bodyX = screen.getTabBodyX(i);
+            int bodyY = screen.getTabBodyY(i);
+            int bodyW = screen.getTabBodyW(i);
+            int bodyH = screen.getTabBodyH(i);
+
+            int closeX = screen.getTabCloseBtnX(i);
+            int closeY = screen.getTabCloseBtnY(i);
+            int closeW = screen.getTabCloseBtnW(i);
+            int closeH = screen.getTabCloseBtnH(i);
+
+            // Clean contiguous partition: body right edge aligns exactly with close left edge
+            assertEquals(bodyX + bodyW, closeX, "Body and close button should be contiguous with no gap");
+            assertEquals(bodyY, closeY, "Body and close button should share same top Y");
+            assertEquals(bodyH, closeH, "Body and close button should share same height");
+        }
+
+        // Test boundary pixels on Tab 1
+        int closeX = screen.getTabCloseBtnX(1);
+        int closeY = screen.getTabCloseBtnY(1);
+        int closeW = screen.getTabCloseBtnW(1);
+        int closeH = screen.getTabCloseBtnH(1);
+
+        // Click rightmost pixel of close button: should close tab
+        boolean handled = screen.mouseClicked(closeX + closeW - 1, closeY + closeH - 1, 0);
+        assertTrue(handled);
+        assertEquals(1, screen.getCraftGraph().getTabs().size(), "Rightmost pixel of close button must close tab");
+    }
 }
