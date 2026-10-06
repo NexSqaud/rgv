@@ -84,6 +84,33 @@ public class RgvRecipeScreen {
     private float panInitialX = 0;
     private float panInitialY = 0;
     private int lastActiveTabIndex = -1;
+    private final List<TabHitbox> renderedTabHitboxes = new ArrayList<>();
+    private int renderedNewTabBtnX = -1;
+    private int renderedNewTabBtnY = -1;
+
+    private static class TabHitbox {
+        final int index;
+        final int x;
+        final int y;
+        final int w;
+        final int h;
+        final int closeX;
+        final int closeY;
+        final int closeW;
+        final int closeH;
+
+        TabHitbox(int index, int x, int y, int w, int h, int closeX, int closeY, int closeW, int closeH) {
+            this.index = index;
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+            this.closeX = closeX;
+            this.closeY = closeY;
+            this.closeW = closeW;
+            this.closeH = closeH;
+        }
+    }
 
     // Graph recipe selection mode (when choosing a craft recipe for an ingredient in the graph)
     private boolean isSelectingForGraph = false;
@@ -527,6 +554,7 @@ public class RgvRecipeScreen {
             }
         }
 
+        renderedTabHitboxes.clear();
         for (int i = 0; i < tabs.size(); i++) {
             RgvCraftGraphTab tab = tabs.get(i);
             boolean isActive = (i == activeIdx);
@@ -544,18 +572,27 @@ public class RgvRecipeScreen {
             context.drawText(title, tabX + 24, tabY + 5, isActive ? 0x111111 : 0xAAAAAA, false);
 
             int closeTabX = tabX + 24 + titleW + 6;
-            boolean closeHover = mouseX >= closeTabX - 2 && mouseX <= closeTabX + 9 && mouseY >= tabY + 3 && mouseY <= tabY + 14;
+            int closeBtnX = closeTabX - 3;
+            int closeBtnY = tabY + 1;
+            int closeBtnW = 14;
+            int closeBtnH = tabH - 2;
+            boolean closeHover = mouseX >= closeBtnX && mouseX < closeBtnX + closeBtnW
+                    && mouseY >= closeBtnY && mouseY < closeBtnY + closeBtnH;
+
             // Contrast compliant: dark on active light tab, bright on inactive dark tab
             context.drawText("x", closeTabX, tabY + 5, closeHover ? 0xFFFF4444 : (isActive ? 0x444444 : 0xCCCCCC), false);
+
+            renderedTabHitboxes.add(new TabHitbox(i, tabX, tabY, tabW, tabH, closeBtnX, closeBtnY, closeBtnW, closeBtnH));
 
             tabX += tabW + 3;
             if (tabX > x + width - 35) break;
         }
 
-        int newTabBtnX = tabX;
-        boolean newHover = mouseX >= newTabBtnX && mouseX < newTabBtnX + 18 && mouseY >= tabY && mouseY < tabY + tabH;
-        context.drawRect(newTabBtnX, tabY, 18, tabH, newHover ? 0xFF55AA55 : 0xFF444444);
-        context.drawText("+", newTabBtnX + 6, tabY + 5, 0xFFFFFF, false);
+        renderedNewTabBtnX = tabX;
+        renderedNewTabBtnY = tabY;
+        boolean newHover = mouseX >= tabX && mouseX < tabX + 18 && mouseY >= tabY && mouseY < tabY + tabH;
+        context.drawRect(tabX, tabY, 18, tabH, newHover ? 0xFF55AA55 : 0xFF444444);
+        context.drawText("+", tabX + 6, tabY + 5, 0xFFFFFF, false);
 
         RgvCraftGraphTab activeTab = craftGraph.getActiveTab();
         if (activeTab == null) return;
@@ -1221,44 +1258,94 @@ public class RgvRecipeScreen {
         RgvCraftGraphTab activeTab = craftGraph.getActiveTab();
 
 
-        // Tab selection and close
-        int tabX = x + 6;
-        int tabY = y + 25;
-        int tabH = 18;
-        List<RgvCraftGraphTab> tabs = craftGraph.getTabs();
+        // Tab selection and close using cached rendered hitboxes if available
+        if (!renderedTabHitboxes.isEmpty()) {
+            for (TabHitbox hit : renderedTabHitboxes) {
+                if (mouseX >= hit.closeX && mouseX < hit.closeX + hit.closeW
+                        && mouseY >= hit.closeY && mouseY < hit.closeY + hit.closeH) {
+                    craftGraph.closeTab(hit.index);
+                    lastActiveTabIndex = -1;
+                    RgvCraftGraphTab active = craftGraph.getActiveTab();
+                    if (active != null) {
+                        centerGraph(active, width - 12, height - 52);
+                    }
+                    return true;
+                }
 
-        for (int i = 0; i < tabs.size(); i++) {
-            RgvCraftGraphTab tab = tabs.get(i);
-            int titleW = RgvPlatform.get() != null ? (tab.getTitle().length() * 6) : 40;
-            int tabW = 3 + 16 + 5 + titleW + 6 + 8 + 4;
-
-            int closeTabX = tabX + 24 + titleW + 6;
-            if (mouseX >= closeTabX - 2 && mouseX <= closeTabX + 9 && mouseY >= tabY + 3 && mouseY <= tabY + 14) {
-                craftGraph.closeTab(i);
-                return true;
+                if (mouseX >= hit.x && mouseX < hit.x + hit.w
+                        && mouseY >= hit.y && mouseY < hit.y + hit.h) {
+                    craftGraph.setActiveTabIndex(hit.index);
+                    RgvCraftGraphTab active = craftGraph.getActiveTab();
+                    if (active != null) {
+                        centerGraph(active, width - 12, height - 52);
+                    }
+                    return true;
+                }
             }
 
-            if (mouseX >= tabX && mouseX < tabX + tabW && mouseY >= tabY && mouseY < tabY + tabH) {
-                craftGraph.setActiveTabIndex(i);
-                RgvCraftGraphTab active = craftGraph.getActiveTab();
-                if (active != null) {
-                    centerGraph(active, width - 12, height - 52);
+            if (renderedNewTabBtnX >= 0 && mouseX >= renderedNewTabBtnX && mouseX < renderedNewTabBtnX + 18
+                    && mouseY >= renderedNewTabBtnY && mouseY < renderedNewTabBtnY + 18) {
+                RgvCraftGraphTab emptyTab = craftGraph.createNewEmptyTab();
+                lastActiveTabIndex = -1;
+                if (emptyTab != null) {
+                    centerGraph(emptyTab, width - 12, height - 52);
                 }
                 return true;
             }
+        } else {
+            // Fallback calculation using platform font metrics
+            int tabX = x + 6;
+            int tabY = y + 25;
+            int tabH = 18;
+            List<RgvCraftGraphTab> tabs = craftGraph.getTabs();
+            RgvPlatform platform = RgvPlatform.get();
 
-            tabX += tabW + 3;
-            if (tabX > x + width - 35) break;
-        }
+            for (int i = 0; i < tabs.size(); i++) {
+                RgvCraftGraphTab tab = tabs.get(i);
+                int titleW = platform != null ? platform.getTextWidth(tab.getTitle()) : 40;
+                int tabW = 3 + 16 + 5 + titleW + 6 + 8 + 4;
 
-        // [+] New Tab button
-        int newTabBtnX = tabX;
-        if (mouseX >= newTabBtnX && mouseX < newTabBtnX + 18 && mouseY >= tabY && mouseY < tabY + tabH) {
-            RgvCraftGraphTab emptyTab = craftGraph.createNewEmptyTab();
-            if (emptyTab != null) {
-                centerGraph(emptyTab, width - 12, height - 52);
+                int closeTabX = tabX + 24 + titleW + 6;
+                int closeBtnX = closeTabX - 3;
+                int closeBtnY = tabY + 1;
+                int closeBtnW = 14;
+                int closeBtnH = tabH - 2;
+
+                if (mouseX >= closeBtnX && mouseX < closeBtnX + closeBtnW
+                        && mouseY >= closeBtnY && mouseY < closeBtnY + closeBtnH) {
+                    craftGraph.closeTab(i);
+                    lastActiveTabIndex = -1;
+                    RgvCraftGraphTab active = craftGraph.getActiveTab();
+                    if (active != null) {
+                        centerGraph(active, width - 12, height - 52);
+                    }
+                    return true;
+                }
+
+                if (mouseX >= tabX && mouseX < tabX + tabW && mouseY >= tabY && mouseY < tabY + tabH) {
+                    craftGraph.setActiveTabIndex(i);
+                    lastActiveTabIndex = -1;
+                    RgvCraftGraphTab active = craftGraph.getActiveTab();
+                    if (active != null) {
+                        centerGraph(active, width - 12, height - 52);
+                    }
+                    return true;
+                }
+
+                tabX += tabW + 3;
+                if (tabX > x + width - 35) break;
             }
-            return true;
+
+            // [+] New Tab button
+            int newTabBtnX = tabX;
+            if (mouseX >= newTabBtnX && mouseX < newTabBtnX + 18 && mouseY >= tabY && mouseY < tabY + tabH) {
+                RgvCraftGraphTab emptyTab = craftGraph.createNewEmptyTab();
+                lastActiveTabIndex = -1;
+                if (emptyTab != null) {
+                    centerGraph(emptyTab, width - 12, height - 52);
+                }
+                return true;
+            }
         }
 
         if (activeTab == null) return true;

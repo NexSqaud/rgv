@@ -319,6 +319,14 @@ public class Forge1122Platform implements RgvPlatform {
         }
     }
 
+    @Override
+    public int getTextWidth(String text) {
+        if (FMLCommonHandler.instance().getSide().isClient()) {
+            return ClientTooltipHelper1122.getTextWidth(text);
+        }
+        return text != null ? text.length() * 6 : 0;
+    }
+
     public static boolean isJeiPresent() {
         try {
             return Loader.isModLoaded("jei");

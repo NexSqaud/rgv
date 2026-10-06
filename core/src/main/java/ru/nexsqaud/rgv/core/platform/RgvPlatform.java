@@ -107,4 +107,8 @@ public interface RgvPlatform {
     default boolean isMouseButtonDown(int button) {
         return true;
     }
+
+    default int getTextWidth(String text) {
+        return text != null ? text.length() * 6 : 0;
+    }
 }

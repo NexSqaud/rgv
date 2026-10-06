@@ -190,6 +190,49 @@ public class RgvCraftGraphTest {
     }
 
     @Test
+    public void testCloseTabActiveIndexTrackingAndTwoTabs() {
+        RgvCraftGraph graph = new RgvCraftGraph();
+        RgvCraftGraphTab tab0 = graph.createNewEmptyTab();
+        RgvCraftGraphTab tab1 = graph.createNewEmptyTab();
+        assertEquals(2, graph.getTabs().size());
+        assertEquals(1, graph.getActiveTabIndex()); // tab1 is active
+
+        // Closing preceding tab (tab 0) while tab 1 is active: active tab should become 0 (pointing to tab 1)
+        graph.closeTab(0);
+        assertEquals(1, graph.getTabs().size());
+        assertEquals(0, graph.getActiveTabIndex());
+        assertSame(tab1, graph.getActiveTab());
+
+        // Add two more tabs: now we have 3 tabs
+        RgvCraftGraphTab tabB = graph.createNewEmptyTab(); // index 1
+        RgvCraftGraphTab tabC = graph.createNewEmptyTab(); // index 2
+        assertEquals(3, graph.getTabs().size());
+        assertEquals(2, graph.getActiveTabIndex()); // tabC is active
+
+        // Set active tab to index 1 (tabB)
+        graph.setActiveTabIndex(1);
+        assertEquals(1, graph.getActiveTabIndex());
+
+        // Close tab 0 (preceding tab): active index should decrement to 0 (pointing to tabB)
+        graph.closeTab(0);
+        assertEquals(2, graph.getTabs().size());
+        assertEquals(0, graph.getActiveTabIndex());
+        assertSame(tabB, graph.getActiveTab());
+
+        // Close active tab (index 0, tabB): active index stays 0, pointing to tabC
+        graph.closeTab(0);
+        assertEquals(1, graph.getTabs().size());
+        assertEquals(0, graph.getActiveTabIndex());
+        assertSame(tabC, graph.getActiveTab());
+
+        // Close the last tab: tabs becomes empty
+        graph.closeTab(0);
+        assertEquals(0, graph.getTabs().size());
+        assertEquals(0, graph.getActiveTabIndex());
+        assertNull(graph.getActiveTab());
+    }
+
+    @Test
     public void testMultiSlotCraftingAndAmountRequirements() {
         RgvRecipeCategory cat = new RgvRecipeCategory("crafting", "Crafting", RgvStack.empty());
         RgvRecipeManager manager = new RgvRecipeManager();

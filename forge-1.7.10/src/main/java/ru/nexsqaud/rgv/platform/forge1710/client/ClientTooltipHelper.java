@@ -128,4 +128,15 @@ public class ClientTooltipHelper {
         }
         return opened;
     }
+
+    public static int getTextWidth(String text) {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc != null && mc.fontRenderer != null && text != null) {
+                return mc.fontRenderer.getStringWidth(text);
+            }
+        } catch (Throwable ignored) {
+        }
+        return text != null ? text.length() * 6 : 0;
+    }
 }
