@@ -65,8 +65,16 @@ Output artifacts:
 - Forge 1.12.2: `./gradlew :forge-1.12.2:build`
 
 ### Running in Development Environment
-- Forge 1.7.10 client: `./gradlew run1710`
-- Forge 1.12.2 client: `./gradlew run1122`
+
+#### Minecraft 1.7.10
+- **With Recipe Viewer (NEI/JEI):** `./gradlew run1710WithJei` (or `./gradlew run1710WithNei` / `./gradlew run1710`)
+- **Without Recipe Viewer:** `./gradlew run1710WithoutJei` (or `./gradlew run1710WithoutNei`)
+- Subproject direct tasks: `:forge-1.7.10:runClientWithJei`, `:forge-1.7.10:runClientWithoutJei`
+
+#### Minecraft 1.12.2
+- **With JEI:** `./gradlew run1122WithJei` (or `./gradlew run1122`)
+- **Without JEI:** `./gradlew run1122WithoutJei`
+- Subproject direct tasks: `:forge-1.12.2:runClientWithJei`, `:forge-1.12.2:runClientWithoutJei`
 
 ## License
 
