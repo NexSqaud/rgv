@@ -219,6 +219,9 @@ public class RgvRecipeScreen {
     }
 
     public void openGraphView() {
+        if (craftGraph != null) {
+            craftGraph.clearPendingTarget();
+        }
         this.open = true;
         this.openTime = System.currentTimeMillis();
         this.viewMode = ViewMode.GRAPH;
@@ -1278,7 +1281,19 @@ public class RgvRecipeScreen {
                     int slotY = startY + row * 18;
 
                     if (mouseX >= slotX && mouseX < slotX + 18 && mouseY >= slotY && mouseY < slotY + 18) {
-                        activeTab.selectItem(items.get(startIdx + i), recipeManager);
+                        RgvStack selected = items.get(startIdx + i);
+                        if (platform.isRecipeViewerPresent()) {
+                            activeTab.setTargetStack(selected);
+                            activeTab.setSelectingItem(false);
+                            activeTab.setSelectingRecipe(true);
+                            craftGraph.setPendingTarget(activeTab, null, selected);
+                            if (platform.openExternalRecipeViewer(selected, false)) {
+                                close();
+                                return true;
+                            }
+                            craftGraph.clearPendingTarget();
+                        }
+                        activeTab.selectItem(selected, recipeManager);
                         if (activeTab.isSelectingRecipe()) {
                             openRecipePickerForNode(activeTab, null, activeTab.getCandidateRecipes());
                         } else {
@@ -1292,6 +1307,15 @@ public class RgvRecipeScreen {
         }
 
         if (activeTab.isSelectingRecipe()) {
+            RgvPlatform platform = RgvPlatform.get();
+            if (platform != null && platform.isRecipeViewerPresent()) {
+                craftGraph.setPendingTarget(activeTab, null, activeTab.getTargetStack());
+                if (platform.openExternalRecipeViewer(activeTab.getTargetStack(), false)) {
+                    close();
+                    return true;
+                }
+                craftGraph.clearPendingTarget();
+            }
             List<RgvRecipe> recipes = activeTab.getCandidateRecipes();
             openRecipePickerForNode(activeTab, null, recipes);
             return true;
@@ -1313,6 +1337,15 @@ public class RgvRecipeScreen {
         }
 
         if (hoveredGraphNode != null) {
+            RgvPlatform platform = RgvPlatform.get();
+            if (platform != null && platform.isRecipeViewerPresent()) {
+                craftGraph.setPendingTarget(activeTab, hoveredGraphNode, hoveredGraphNode.getStack());
+                if (platform.openExternalRecipeViewer(hoveredGraphNode.getStack(), false)) {
+                    close();
+                    return true;
+                }
+                craftGraph.clearPendingTarget();
+            }
             List<RgvRecipe> recipes = recipeManager.getRecipesFor(hoveredGraphNode.getStack());
             if (!recipes.isEmpty()) {
                 openRecipePickerForNode(activeTab, hoveredGraphNode, recipes);

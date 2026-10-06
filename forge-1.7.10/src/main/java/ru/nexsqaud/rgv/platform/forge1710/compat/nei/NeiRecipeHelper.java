@@ -282,11 +282,15 @@ public class NeiRecipeHelper {
             }
 
             int targetIndex = Math.min(numRecipes - 1, Math.max(0, page * perPage + offset));
-            addNeiRecipeIndexToGraph(handler, targetIndex, screenManager);
+            addNeiRecipeIndexToGraph(guiRecipe, handler, targetIndex, screenManager);
         }
     }
 
     public static void addNeiRecipeIndexToGraph(Object handler, int recipeIndex, RgvScreenManager screenManager) {
+        addNeiRecipeIndexToGraph(null, handler, recipeIndex, screenManager);
+    }
+
+    public static void addNeiRecipeIndexToGraph(Object guiRecipe, Object handler, int recipeIndex, RgvScreenManager screenManager) {
         if (handler == null || screenManager == null) return;
         try {
             RgvRecipe rgvRecipe = createRgvRecipeFromNei(handler, recipeIndex);
@@ -298,6 +302,26 @@ public class NeiRecipeHelper {
                     RgvInventory inv = RgvPlatform.get() != null ? RgvPlatform.get().getPlayerInventory() : null;
                     screenManager.getCraftGraph().addTabForRecipe(rgvRecipe, 1, screenManager.getRecipeManager(), inv);
                 }
+
+                if (guiRecipe != null) {
+                    try {
+                        Field fFirst = null;
+                        try {
+                            fFirst = guiRecipe.getClass().getField("firstGui");
+                        } catch (NoSuchFieldException e) {
+                            fFirst = guiRecipe.getClass().getDeclaredField("firstGui");
+                        }
+                        if (fFirst != null) {
+                            fFirst.setAccessible(true);
+                            net.minecraft.client.gui.GuiScreen first = (net.minecraft.client.gui.GuiScreen) fFirst.get(guiRecipe);
+                            if (first != null) {
+                                Minecraft.getMinecraft().displayGuiScreen(first);
+                            }
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+
                 screenManager.getRecipeScreen().openGraphView();
             }
         } catch (Throwable t) {
