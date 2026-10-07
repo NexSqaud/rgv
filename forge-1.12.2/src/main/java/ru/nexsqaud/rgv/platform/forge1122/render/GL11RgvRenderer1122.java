@@ -148,7 +148,11 @@ public class GL11RgvRenderer1122 implements RgvDrawContext {
 
     @Override
     public void enableScissor(int x, int y, int width, int height) {
-        if (width <= 0 || height <= 0 || mc.displayWidth <= 0 || mc.displayHeight <= 0) return;
+        if (width <= 0 || height <= 0 || mc.displayWidth <= 0 || mc.displayHeight <= 0) {
+            GL11.glEnable(GL11.GL_SCISSOR_TEST);
+            GL11.glScissor(0, 0, 0, 0);
+            return;
+        }
         ScaledResolution res = new ScaledResolution(mc);
         int scale = res.getScaleFactor();
 
@@ -171,7 +175,11 @@ public class GL11RgvRenderer1122 implements RgvDrawContext {
         if (sy + sh > mc.displayHeight) {
             sh = mc.displayHeight - sy;
         }
-        if (sw <= 0 || sh <= 0) return;
+        if (sw <= 0 || sh <= 0) {
+            GL11.glEnable(GL11.GL_SCISSOR_TEST);
+            GL11.glScissor(0, 0, 0, 0);
+            return;
+        }
 
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
         GL11.glScissor(sx, sy, sw, sh);

@@ -15,7 +15,6 @@ import ru.nexsqaud.rgv.api.RgvStack;
 import ru.nexsqaud.rgv.core.platform.RgvPlatform;
 import ru.nexsqaud.rgv.core.recipe.RgvRecipeManager;
 import ru.nexsqaud.rgv.core.screen.RgvScreenManager;
-import ru.nexsqaud.rgv.platform.forge1710.client.ClientTooltipHelper;
 import ru.nexsqaud.rgv.platform.forge1710.network.GiveItemMessage;
 import ru.nexsqaud.rgv.platform.forge1710.network.RgvPacketHandler;
 import ru.nexsqaud.rgv.platform.forge1710.network.TransferRecipeMessage;
@@ -99,21 +98,19 @@ public class Forge1710Platform implements RgvPlatform {
         }
 
         List<String> tooltip = null;
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            try {
-                ItemStack safeForTooltip = isWildcard ? stack.copy() : stack;
-                if (isWildcard) {
-                    safeForTooltip.setItemDamage(0);
-                }
-                tooltip = ClientTooltipHelper.getTooltip(safeForTooltip, displayName);
-            } catch (Throwable ignored) {
-            }
+        RgvPlatform platform = RgvPlatform.get();
+        if (platform instanceof Forge1710Platform) {
+            tooltip = ((Forge1710Platform) platform).getTooltip(stack, displayName);
         }
         if (tooltip == null || tooltip.isEmpty()) {
             tooltip = Collections.singletonList(displayName);
         }
 
         return RgvStack.ofPayload(id, meta, amount, displayName, tooltip, stack.copy());
+    }
+
+    public List<String> getTooltip(ItemStack stack, String displayName) {
+        return Collections.singletonList(displayName);
     }
 
     public static List<RgvStack> expandStack(ItemStack s) {
@@ -194,9 +191,6 @@ public class Forge1710Platform implements RgvPlatform {
 
     @Override
     public boolean isInventoryKey(int keyCode) {
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            return ClientTooltipHelper.isInventoryKey(keyCode);
-        }
         return false;
     }
 
@@ -266,9 +260,6 @@ public class Forge1710Platform implements RgvPlatform {
 
     @Override
     public RgvInventory getPlayerInventory() {
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            return ClientTooltipHelper.getPlayerInventory();
-        }
         return null;
     }
 
@@ -283,10 +274,6 @@ public class Forge1710Platform implements RgvPlatform {
     @Override
     public boolean transferRecipe(RgvRecipe recipe, boolean maxCraft) {
         if (recipe == null) return false;
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            boolean emulated = ru.nexsqaud.rgv.platform.forge1710.client.ClientTransferHelper.transferRecipe(recipe, maxCraft);
-            if (emulated) return true;
-        }
         sendTransferRecipePacket(recipe.getId(), maxCraft);
         return true;
     }
@@ -301,43 +288,25 @@ public class Forge1710Platform implements RgvPlatform {
         if (stack == null || stack.isEmpty()) return;
         int count = fullStack ? 64 : 1;
         RgvPacketHandler.NETWORK.sendToServer(new GiveItemMessage(stack.getId(), stack.getMeta(), count));
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            ItemStack mcStack = toMinecraftStack(stack);
-            if (mcStack != null) {
-                ClientTooltipHelper.giveCreativeItem(mcStack, fullStack);
-            }
-        }
     }
 
     @Override
     public boolean isCheatModeAllowed() {
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            return ClientTooltipHelper.isCheatModeAllowed();
-        }
         return false;
     }
 
     @Override
     public int getScreenWidth() {
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            return ClientTooltipHelper.getScreenWidth();
-        }
         return 0;
     }
 
     @Override
     public int getScreenHeight() {
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            return ClientTooltipHelper.getScreenHeight();
-        }
         return 0;
     }
 
     @Override
     public int getGuiScale() {
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            return ClientTooltipHelper.getGuiScale();
-        }
         return 1;
     }
 
@@ -348,9 +317,6 @@ public class Forge1710Platform implements RgvPlatform {
 
     @Override
     public boolean hasSuitableSlotsFor(RgvRecipe recipe) {
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            return ru.nexsqaud.rgv.platform.forge1710.client.ClientTransferHelper.hasSuitableSlotsFor(recipe);
-        }
         return false;
     }
 
@@ -361,35 +327,21 @@ public class Forge1710Platform implements RgvPlatform {
 
     @Override
     public boolean isRecipePanelVisible() {
-        return isNeiPresent() && ru.nexsqaud.rgv.platform.forge1710.compat.nei.NeiRecipeHelper.isNeiPanelVisible();
+        return false;
     }
 
     @Override
     public boolean openExternalRecipeViewer(RgvIngredient ingredient, boolean isUsage) {
-        if (FMLCommonHandler.instance().getSide().isClient() && ingredient instanceof RgvStack) {
-            RgvStack single = ((RgvStack) ingredient).copyWithAmount(1);
-            ItemStack stack = toMinecraftStack(single);
-            if (stack != null) {
-                return ClientTooltipHelper.openExternalRecipeViewer(stack, isUsage);
-            }
-        }
         return false;
     }
 
     @Override
     public boolean isMouseButtonDown(int button) {
-        try {
-            return org.lwjgl.input.Mouse.isButtonDown(button);
-        } catch (Throwable t) {
-            return true;
-        }
+        return false;
     }
 
     @Override
     public int getTextWidth(String text) {
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            return ClientTooltipHelper.getTextWidth(text);
-        }
         return text != null ? text.length() * 6 : 0;
     }
 

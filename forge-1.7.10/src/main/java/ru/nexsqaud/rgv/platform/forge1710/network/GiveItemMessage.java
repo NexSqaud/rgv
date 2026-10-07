@@ -62,7 +62,8 @@ public class GiveItemMessage implements IMessage {
                     if (item == null) return;
 
                     int count = Math.max(1, Math.min(message.amount, item.getItemStackLimit()));
-                    ItemStack stack = new ItemStack(item, count, message.meta);
+                    int meta = (message.meta < 0 || message.meta == 32767 || message.meta == Short.MAX_VALUE) ? 0 : message.meta;
+                    ItemStack stack = new ItemStack(item, count, meta);
 
                     boolean added = player.inventory.addItemStackToInventory(stack);
                     if (!added || stack.stackSize > 0) {

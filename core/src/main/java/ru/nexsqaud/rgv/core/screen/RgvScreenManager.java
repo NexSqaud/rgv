@@ -500,7 +500,7 @@ public class RgvScreenManager implements RgvRecipeScreen.RecipeLookupHandler {
         // Page buttons < and >
         int pageY = rightSidebarY + 2;
         String pageInfo = (index.getCurrentPage() + 1) + " / " + index.getTotalPages();
-        int infoW = RgvPlatform.get() != null ? 30 : 20;
+        int infoW = RgvPlatform.get() != null ? RgvPlatform.get().getTextWidth(pageInfo) : pageInfo.length() * 6;
         int centerX = rightSidebarX + (rightSidebarW - infoW) / 2;
         int prevBtnX = centerX - 16;
         int nextBtnX = centerX + infoW + 8;

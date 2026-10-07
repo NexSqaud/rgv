@@ -46,10 +46,11 @@ public class TransferRecipeMessage1122 implements IMessage {
         @SuppressWarnings("unchecked")
         public IMessage onMessage(TransferRecipeMessage1122 message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
-            if (player == null || player.openContainer == null) return null;
+            if (player == null) return null;
 
             player.getServerWorld().addScheduledTask(() -> {
                 Container container = player.openContainer;
+                if (container == null) return;
                 RgvRecipe recipe = Forge1122Platform.findRecipeById(message.recipeId);
                 if (recipe == null) return;
 

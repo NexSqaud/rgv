@@ -71,7 +71,7 @@ public class GiveItemMessage1122 implements IMessage {
                 if (item == null) return;
 
                 int count = Math.max(1, Math.min(message.amount, item.getItemStackLimit()));
-                int meta = message.meta < 0 ? 0 : message.meta;
+                int meta = (message.meta < 0 || message.meta == 32767 || message.meta == Short.MAX_VALUE) ? 0 : message.meta;
                 ItemStack stack = new ItemStack(item, count, meta);
                 if (stack.isEmpty()) return;
 

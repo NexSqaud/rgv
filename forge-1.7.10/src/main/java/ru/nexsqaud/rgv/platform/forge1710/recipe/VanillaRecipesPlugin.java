@@ -329,6 +329,10 @@ public class VanillaRecipesPlugin implements RgvPlugin {
             }
         }
 
+        if (player == null) {
+            player = resolvePlayer(container);
+        }
+
         // Return existing items in craftMatrix to player inventory or drop them
         for (Slot cSlot : craftSlots) {
             if (cSlot.getHasStack()) {
@@ -358,8 +362,13 @@ public class VanillaRecipesPlugin implements RgvPlugin {
                             existing.stackSize -= toMove;
                         }
                     }
-                    if (existing.stackSize > 0 && player != null) {
-                        player.dropPlayerItemWithRandomChoice(existing.copy(), false);
+                    if (existing.stackSize > 0) {
+                        if (player != null) {
+                            player.dropPlayerItemWithRandomChoice(existing.copy(), false);
+                        } else {
+                            cSlot.putStack(existing);
+                            return;
+                        }
                     }
                 }
                 cSlot.putStack(null);
@@ -393,5 +402,29 @@ public class VanillaRecipesPlugin implements RgvPlugin {
 
         container.onCraftMatrixChanged(craftMatrix);
         container.detectAndSendChanges();
+    }
+
+    private static EntityPlayer resolvePlayer(Container container) {
+        if (container == null) return null;
+        try {
+            java.lang.reflect.Field fCrafters = null;
+            try {
+                fCrafters = Container.class.getDeclaredField("field_75149_d");
+            } catch (NoSuchFieldException e) {
+                fCrafters = Container.class.getDeclaredField("crafters");
+            }
+            if (fCrafters != null) {
+                fCrafters.setAccessible(true);
+                List<?> crafters = (List<?>) fCrafters.get(container);
+                if (crafters != null) {
+                    for (Object c : crafters) {
+                        if (c instanceof EntityPlayer) {
+                            return (EntityPlayer) c;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return null;
     }
 }

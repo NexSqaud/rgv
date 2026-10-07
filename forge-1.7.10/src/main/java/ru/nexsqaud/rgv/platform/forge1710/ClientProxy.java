@@ -24,7 +24,7 @@ public class ClientProxy extends CommonProxy {
     public void init(FMLInitializationEvent event) {
         super.init(event);
 
-        Forge1710Platform platform = new Forge1710Platform();
+        ru.nexsqaud.rgv.platform.forge1710.client.Forge1710ClientPlatform platform = new ru.nexsqaud.rgv.platform.forge1710.client.Forge1710ClientPlatform();
         RgvPlatform.setInstance(platform);
 
         screenManager = new RgvScreenManager(CommonProxy.getRecipeManager());

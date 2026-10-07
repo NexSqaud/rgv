@@ -147,7 +147,10 @@ public class GL11RgvRenderer implements RgvDrawContext {
     public void drawTooltip(List<String> lines, int x, int y) {
         if (lines == null || lines.isEmpty()) return;
 
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        boolean wasDepthEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        if (wasDepthEnabled) {
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+        }
         int tooltipTextWidth = 0;
         for (String line : lines) {
             int w = fontRenderer.getStringWidth(line);
@@ -198,12 +201,18 @@ public class GL11RgvRenderer implements RgvDrawContext {
             curY += 10;
         }
 
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        if (wasDepthEnabled) {
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
+        }
     }
 
     @Override
     public void enableScissor(int x, int y, int width, int height) {
-        if (width <= 0 || height <= 0 || mc.displayWidth <= 0 || mc.displayHeight <= 0) return;
+        if (width <= 0 || height <= 0 || mc.displayWidth <= 0 || mc.displayHeight <= 0) {
+            GL11.glEnable(GL11.GL_SCISSOR_TEST);
+            GL11.glScissor(0, 0, 0, 0);
+            return;
+        }
         ScaledResolution res = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
         int scale = res.getScaleFactor();
 
@@ -226,7 +235,11 @@ public class GL11RgvRenderer implements RgvDrawContext {
         if (sy + sh > mc.displayHeight) {
             sh = mc.displayHeight - sy;
         }
-        if (sw <= 0 || sh <= 0) return;
+        if (sw <= 0 || sh <= 0) {
+            GL11.glEnable(GL11.GL_SCISSOR_TEST);
+            GL11.glScissor(0, 0, 0, 0);
+            return;
+        }
 
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
         GL11.glScissor(sx, sy, sw, sh);

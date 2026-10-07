@@ -83,7 +83,7 @@ public class GuiOverlayHooks1122 {
 
     @SubscribeEvent
     public void onInitGui(GuiScreenEvent.InitGuiEvent.Post event) {
-        if (event.getGui() instanceof RgvGuiScreen1122) return;
+        if (event.getGui() instanceof RgvGuiScreen1122 || Minecraft.getMinecraft().currentScreen instanceof RgvGuiScreen1122) return;
 
         wasGDown = false;
         wasADown = false;
@@ -124,7 +124,7 @@ public class GuiOverlayHooks1122 {
 
     @SubscribeEvent
     public void onDrawScreenPost(GuiScreenEvent.DrawScreenEvent.Post event) {
-        if (event.getGui() instanceof RgvGuiScreen1122) return;
+        if (event.getGui() instanceof RgvGuiScreen1122 || Minecraft.getMinecraft().currentScreen instanceof RgvGuiScreen1122) return;
 
         if (event.getGui().getClass().getName().contains("RecipesGui")) {
             GuiScreen screen = event.getGui();
@@ -174,7 +174,7 @@ public class GuiOverlayHooks1122 {
 
     @SubscribeEvent
     public void onMouseInput(GuiScreenEvent.MouseInputEvent.Pre event) {
-        if (event.getGui() instanceof RgvGuiScreen1122) return;
+        if (event.getGui() instanceof RgvGuiScreen1122 || Minecraft.getMinecraft().currentScreen instanceof RgvGuiScreen1122) return;
 
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.displayWidth <= 0 || mc.displayHeight <= 0) return;
@@ -238,7 +238,7 @@ public class GuiOverlayHooks1122 {
 
     @SubscribeEvent
     public void onKeyboardInput(GuiScreenEvent.KeyboardInputEvent.Pre event) {
-        if (event.getGui() instanceof RgvGuiScreen1122) return;
+        if (event.getGui() instanceof RgvGuiScreen1122 || Minecraft.getMinecraft().currentScreen instanceof RgvGuiScreen1122) return;
 
         int key = Keyboard.getEventKey();
         boolean state = Keyboard.getEventKeyState();

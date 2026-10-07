@@ -330,7 +330,8 @@ public class RgvRecipeScreen {
             nextBtnW = 0;
         }
 
-        RgvRecipe recipe = currentRecipes.get(currentRecipeIndex);
+        RgvRecipe recipe = getCurrentRecipe();
+        if (recipe == null) return;
         int recipeW = recipe.getDisplayWidth();
         int recipeH = recipe.getDisplayHeight();
 
@@ -435,7 +436,8 @@ public class RgvRecipeScreen {
 
         // Recipe Pagination & Title
         if (!currentRecipes.isEmpty()) {
-            RgvRecipe currentRecipe = currentRecipes.get(currentRecipeIndex);
+            RgvRecipe currentRecipe = getCurrentRecipe();
+            if (currentRecipe == null) return;
             String title;
             if (isSelectingForGraph) {
                 String targetName = graphSelectingNode != null && graphSelectingNode.getStack() != null ?
@@ -520,7 +522,8 @@ public class RgvRecipeScreen {
                 drawVanillaButton(context, backX, btnY, backW, 14, backHover, true);
                 context.drawText("< Back", backX + 8, btnY + 3, backHover ? 0xFFFFFF : 0xCCCCCC, false);
             } else {
-                RgvRecipe current = currentRecipes.get(currentRecipeIndex);
+                RgvRecipe current = getCurrentRecipe();
+                if (current == null) return;
                 RgvPlatform platform = RgvPlatform.get();
                 TransferStatus status = platform != null ? platform.getTransferStatus(current) : TransferStatus.NO_SUITABLE_CONTAINER;
                 boolean canTransfer = (status == TransferStatus.AVAILABLE);
@@ -1024,7 +1027,7 @@ public class RgvRecipeScreen {
                 int btnX = x + width - 22;
                 if (mouseX >= btnX && mouseX < btnX + 14 && mouseY >= btnY && mouseY < btnY + 14) {
                     List<String> tip = new ArrayList<>();
-                    RgvRecipe current = !currentRecipes.isEmpty() ? currentRecipes.get(currentRecipeIndex) : null;
+                    RgvRecipe current = getCurrentRecipe();
                     RgvPlatform platform = RgvPlatform.get();
                     TransferStatus status = platform != null ? platform.getTransferStatus(current) : TransferStatus.NO_SUITABLE_CONTAINER;
 
@@ -1184,8 +1187,8 @@ public class RgvRecipeScreen {
             int useW = 86;
             int useX = x + width - useW - 8;
             if (mouseX >= useX && mouseX < useX + useW && mouseY >= btnY && mouseY < btnY + 14) {
-                if (!currentRecipes.isEmpty()) {
-                    RgvRecipe chosen = currentRecipes.get(currentRecipeIndex);
+                RgvRecipe chosen = getCurrentRecipe();
+                if (chosen != null) {
                     if (graphSelectingNode != null && graphSelectingTab != null) {
                         graphSelectingTab.setRecipeForIngredient(graphSelectingNode.getStack(), chosen, recipeManager);
                         craftGraph.save();
@@ -1216,8 +1219,8 @@ public class RgvRecipeScreen {
             // Transfer '+' button
             int btnX = x + width - 22;
             if (mouseX >= btnX && mouseX < btnX + 14 && mouseY >= btnY && mouseY < btnY + 14) {
-                if (!currentRecipes.isEmpty() && RgvPlatform.get() != null) {
-                    RgvRecipe r = currentRecipes.get(currentRecipeIndex);
+                RgvRecipe r = getCurrentRecipe();
+                if (r != null && RgvPlatform.get() != null) {
                     TransferStatus status = RgvPlatform.get().getTransferStatus(r);
                     if (status == TransferStatus.AVAILABLE) {
                         boolean transferred = RgvPlatform.get().transferRecipe(r, button == 1);
@@ -1232,8 +1235,8 @@ public class RgvRecipeScreen {
             // Add to Graph button
             int graphBtnX = btnX - 16;
             if (mouseX >= graphBtnX && mouseX < graphBtnX + 14 && mouseY >= btnY && mouseY < btnY + 14) {
-                if (!currentRecipes.isEmpty()) {
-                    RgvRecipe r = currentRecipes.get(currentRecipeIndex);
+                RgvRecipe r = getCurrentRecipe();
+                if (r != null) {
                     RgvInventory inv = RgvPlatform.get() != null ? RgvPlatform.get().getPlayerInventory() : null;
                     RgvCraftGraphTab newTab = craftGraph.addTabForRecipe(r, 1, recipeManager, inv);
                     setViewMode(ViewMode.GRAPH);
@@ -1526,7 +1529,7 @@ public class RgvRecipeScreen {
         }
 
         // Left (203) / Right (205) arrow navigation
-        if (viewMode == ViewMode.RECIPES && !currentRecipes.isEmpty()) {
+        if (viewMode == ViewMode.RECIPES && currentRecipes.size() > 1) {
             if (keyCode == 203) {
                 currentRecipeIndex = (currentRecipeIndex - 1 + currentRecipes.size()) % currentRecipes.size();
                 rebuildActiveLayout();
@@ -1597,6 +1600,18 @@ public class RgvRecipeScreen {
         }
 
         return false;
+    }
+
+    public RgvRecipe getCurrentRecipe() {
+        if (currentRecipes == null || currentRecipes.isEmpty()) {
+            return null;
+        }
+        if (currentRecipeIndex < 0) {
+            currentRecipeIndex = 0;
+        } else if (currentRecipeIndex >= currentRecipes.size()) {
+            currentRecipeIndex = currentRecipes.size() - 1;
+        }
+        return currentRecipes.get(currentRecipeIndex);
     }
 
     public int getCurrentRecipeIndex() {
